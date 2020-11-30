@@ -23,8 +23,8 @@ def train_one_epoch(model, optimizer, lr_scheduler, data_loader, device, epoch, 
 
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
-    metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value}'))
-    metric_logger.add_meter('clips/s', utils.SmoothedValue(window_size=10, fmt='{value:.3f}'))
+    metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value}', device=device))
+    metric_logger.add_meter('clips/s', utils.SmoothedValue(window_size=10, fmt='{value:.3f}', device=device))
 
     header = 'Epoch: [{}]'.format(epoch)
 

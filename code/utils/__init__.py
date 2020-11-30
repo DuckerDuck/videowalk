@@ -40,13 +40,14 @@ class SmoothedValue(object):
     window or the global series average.
     """
 
-    def __init__(self, window_size=20, fmt=None):
+    def __init__(self, window_size=20, fmt=None, device='gpu'):
         if fmt is None:
             fmt = "{median:.4f} ({global_avg:.4f})"
         self.deque = deque(maxlen=window_size)
         self.total = 0.0
         self.count = 0
         self.fmt = fmt
+        self.device = device
 
     def update(self, value, n=1):
         self.deque.append(value)
@@ -60,7 +61,7 @@ class SmoothedValue(object):
         """
         if not is_dist_avail_and_initialized():
             return
-        t = torch.tensor([self.count, self.total], dtype=torch.float64, device='cuda')
+        t = torch.tensor([self.count, self.total], dtype=torch.float64, device=self.device)
         dist.barrier()
         dist.all_reduce(t)
         t = t.tolist()
