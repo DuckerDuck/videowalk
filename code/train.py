@@ -54,10 +54,15 @@ def train_one_epoch(model, optimizer, lr_scheduler, data_loader, device, epoch, 
 
     checkpoint_fn()
 
-def _get_cache_path(filepath):
+def _get_cache_path(filepath, args=None):
     import hashlib
     h = hashlib.sha1(filepath.encode()).hexdigest()
-    cache_path = os.path.join("~", ".torch", "vision", "datasets", "kinetics", h[:10] + ".pt")
+
+    if args != None:
+        cache_path = os.path.join(args.cache_dataset_path, h[:10] + ".pt")
+    else:
+        cache_path = os.path.join("~", ".torch", "vision", "datasets", "kinetics", h[:10] + ".pt")
+    
     cache_path = os.path.expanduser(cache_path)
     return cache_path
 
@@ -79,7 +84,8 @@ def main(args):
     valdir = os.path.join(args.data_path, 'val_256')
 
     st = time.time()
-    cache_path = _get_cache_path(traindir)
+    cache_path = _get_cache_path(traindir, args)
+    print("CACHE PATH:", cache_path)
 
     transform_train = utils.augs.get_train_transforms(args)
 
