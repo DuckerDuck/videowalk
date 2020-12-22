@@ -108,7 +108,8 @@ def train_args():
     parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                         help='start epoch')
     
-    parser.add_argument( "--cache-dataset", dest="cache_dataset", help="Cache the datasets for quicker initialization. It also serializes the transforms", action="store_true", )
+    parser.add_argument( "--cache-dataset", dest="cache_dataset", help="Cache the datasets for quicker initialization. It also serializes the transforms", action="store_true")
+    parser.add_argument( "--cache-dataset-path", dest="cache_dataset_path", help="Path of cached dataset", default=None)
     parser.add_argument( "--data-parallel", dest="data_parallel", help="", action="store_true", )
     parser.add_argument( "--fast-test", dest="fast_test", help="", action="store_true", )
 
