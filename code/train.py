@@ -138,8 +138,8 @@ def main(args):
         
     print("Took", time.time() - st)
 
-    def make_data_sampler(is_train, dataset):
-        torch.manual_seed(0)
+    def make_data_sampler(is_train, dataset, seed=0):
+        torch.manual_seed(seed)
         if hasattr(dataset, 'video_clips'):
             _sampler = RandomClipSampler #UniformClipSampler
             return _sampler(dataset.video_clips, args.clips_per_video)
@@ -147,7 +147,7 @@ def main(args):
             return torch.utils.data.sampler.RandomSampler(dataset) if is_train else None
     
     print("Creating data loaders")
-    train_sampler = make_data_sampler(True, dataset)
+    train_sampler = make_data_sampler(True, dataset, seed=args.manualSeed)
 
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=args.batch_size, # shuffle=not args.fast_test,

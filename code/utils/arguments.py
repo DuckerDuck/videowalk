@@ -18,7 +18,7 @@ def test_args():
                         help='path to latest checkpoint (default: none)')
     parser.add_argument('--manualSeed', type=int, default=777, help='manual seed')
 
-    #Device options
+    # Device options
     parser.add_argument('--gpu-id', default='0', type=str,
                         help='id(s) for CUDA_VISIBLE_DEVICES')
     parser.add_argument('--batchSize', default=1, type=int,
@@ -97,7 +97,7 @@ def train_args():
     parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
                         metavar='W', help='weight decay (default: 1e-4)',
                         dest='weight_decay')
-
+    parser.add_argument('--manualSeed', type=int, default=0, help='manual seed')
     parser.add_argument('--lr-milestones', nargs='+', default=[20, 30, 40], type=int, help='decrease lr on milestones')
     parser.add_argument('--lr-gamma', default=0.3, type=float, help='decrease lr by a factor of lr-gamma')
     parser.add_argument('--lr-warmup-epochs', default=0, type=int, help='number of warmup epochs')
@@ -165,6 +165,15 @@ def train_args():
         import datetime
         dt = datetime.datetime.today()
         args.name = "%s-%s-%s_%s" % (str(dt.month), str(dt.day), args.name, name)
+
+    # Set seed
+    random.seed(args.manualSeed)
+    torch.manual_seed(args.manualSeed)
+    
+    use_cuda = torch.cuda.is_available()
+
+    if use_cuda:
+        torch.cuda.manual_seed_all(args.manualSeed)
 
     utils.mkdir(args.output_dir)
 
