@@ -12,6 +12,7 @@ import torchvision
 
 import data
 from data.kinetics import Kinetics400
+from data.salient_kinetics import SalientKinetics400
 from data.video import VideoList
 from torchvision.datasets.samplers.clip_sampler import RandomClipSampler, UniformClipSampler
 
@@ -67,8 +68,13 @@ def _get_cache_path(filepath, args=None):
     return cache_path
 
 def collate_fn(batch):
-    # remove audio from the batch
+    # Only return video
     batch = [d[0] for d in batch]
+    return default_collate(batch)
+
+def salient_collate_fn(batch):
+    # Only return video, saliency
+    batch = [(d[0], d[2]) for d in batch]
     return default_collate(batch)
 
 def main(args):
@@ -93,16 +99,28 @@ def main(args):
         _transform = transform_train if is_train else transform_test
 
         if 'kinetics' in args.data_path.lower():
-            return Kinetics400(
-                traindir if is_train else valdir,
-                frames_per_clip=args.clip_len,
-                step_between_clips=1,
-                transform=transform_train,
-                extensions=('mp4'),
-                frame_rate=args.frame_skip,
-                # cached=cached,
-                _precomputed_metadata=cached
-            )
+            if args.with_saliency:
+                return SalientKinetics400(
+                    traindir if is_train else valdir,
+                    args.saliency_path,
+                    frames_per_clip=args.clip_len,
+                    step_between_clips=1,
+                    transform=transform_train,
+                    extensions=('mp4'),
+                    frame_rate=args.frame_skip,
+                    _precomputed_metadata=cached
+                )
+            else: 
+                return Kinetics400(
+                    traindir if is_train else valdir,
+                    frames_per_clip=args.clip_len,
+                    step_between_clips=1,
+                    transform=transform_train,
+                    extensions=('mp4'),
+                    frame_rate=args.frame_skip,
+                    # cached=cached,
+                    _precomputed_metadata=cached
+                )
         elif os.path.isdir(args.data_path): # HACK assume image dataset if data path is a directory
             return torchvision.datasets.ImageFolder(
                 root=args.data_path,
@@ -148,11 +166,15 @@ def main(args):
     
     print("Creating data loaders")
     train_sampler = make_data_sampler(True, dataset, seed=args.manualSeed)
-
+    
+    collate = collate_fn
+    if args.with_saliency:
+        collate = salient_collate_fn
+    
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=args.batch_size, # shuffle=not args.fast_test,
         sampler=train_sampler, num_workers=args.workers//2,
-        pin_memory=True, collate_fn=collate_fn)
+        pin_memory=True, collate_fn=collate)
     
     vis = utils.visualize.Visualize(args) if args.visualize else None
 
