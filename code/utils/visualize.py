@@ -139,7 +139,7 @@ def nn_patches(vis, P, A_k, prefix='', N=10, K=20):
         # vis.image(p,  win='%s_patch_query_%s' % (prefix, n))
 
         for k in range(I.shape[0]):
-            vis.images(P[I[k, i, :K]], nrow=min(I.shape[-1], 20), win='%s_patch_values_%s_%s' % (prefix, n, k))
+            vis.images(P[I[k, i, :K]], nrow=min(I.shape[-1], 20), win='%s_patch_values_%s_%s' % (prefix, n, k), opts=dict(caption='Nearest Neighbor patches'))
             vis.bar(A[k, i][::-1][:K], opts=dict(height=150, width=500), win='%s_patch_affinity_%s_%s' % (prefix, n, k))
 
 
@@ -182,7 +182,8 @@ def vis_flow_plt(u, v, x1, x2, A):
     # ax.quiver(mx[skip], my[skip], flows[...,0][skip], flows[...,1][skip])
 
     return plt
-    
+
+
 def frame_pair(x, ff, mm, t1, t2, A, AA, xent_loss, viz):
     normalize = lambda xx: (xx-xx.min()) / (xx-xx.min()).max()
     spatialize = lambda xx: xx.view(*xx.shape[:-1], int(xx.shape[-1]**0.5), int(xx.shape[-1]**0.5))
@@ -234,8 +235,8 @@ def frame_pair(x, ff, mm, t1, t2, A, AA, xent_loss, viz):
         pca2 = torchvision.utils.make_grid(torch.Tensor(pca_ff[N:]), nrow=int(N**0.5), padding=1, pad_value=1)
         img1 = torchvision.utils.make_grid(normalize(x1)*255, nrow=int(N**0.5), padding=1, pad_value=1)
         img2 = torchvision.utils.make_grid(normalize(x2)*255, nrow=int(N**0.5), padding=1, pad_value=1)
-        viz.images(torch.stack([pca1,pca2]), nrow=4, win='pca_viz_combined1')
-        viz.images(torch.stack([img1.cpu(),img2.cpu()]), opts=dict(title=f"{t1} {t2}"), nrow=4, win='pca_viz_combined2')
+        viz.images(torch.stack([pca1,pca2]), nrow=4, win='pca_viz_combined1', opts=dict(caption='pca'))
+        viz.images(torch.stack([img1.cpu(),img2.cpu()]), opts=dict(title=f"{t1} {t2}", caption='pca comb'), nrow=4, win='pca_viz_combined2')
     
     ##############################################
     # LOSS VIS
@@ -251,5 +252,5 @@ def frame_pair(x, ff, mm, t1, t2, A, AA, xent_loss, viz):
     img_grid = torchvision.utils.make_grid(img_grid, nrow=H, padding=1, pad_value=1)
     
     # img_grid = cv2.resize(img_grid.permute(1, 2, 0).cpu().detach().numpy(), (1000, 1000), interpolation=cv2.INTER_NEAREST).transpose(2, 0, 1)
-    viz.images(img_grid, win='lossvis')
+    viz.images(img_grid, win='lossvis', opts=dict(caption='loss'))
 
