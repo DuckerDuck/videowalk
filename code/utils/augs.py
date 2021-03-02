@@ -56,9 +56,15 @@ def n_patches(x, n, transform, shape=(64, 64, 3), scale=[0.2, 0.8]):
 def patch_grid(transform, shape=(64, 64, 3), stride=[0.5, 0.5]):
     stride = np.random.random() * (stride[1] - stride[0]) + stride[0]
     stride = [int(shape[0]*stride), int(shape[1]*stride), shape[2]]
-    
+   
+    def to_pil(x):
+        if x.shape[2] == 3:
+            return Image.fromarray(x)
+        y = Image.fromarray(np.squeeze(x, axis=2))
+        return y
+
     spatial_jitter = transforms.Compose([
-        lambda x: Image.fromarray(x),
+        lambda x: to_pil(x),
         transforms.RandomResizedCrop(shape[0], scale=(0.7, 0.9))
     ])
 
@@ -68,6 +74,8 @@ def patch_grid(transform, shape=(64, 64, 3), stride=[0.5, 0.5]):
         elif 'PIL' in str(type(x)):
             x = np.array(x)#.transpose(2, 0, 1)
         
+        if len(x.shape) == 2:
+            x = np.expand_dims(x, axis=2)
         winds = skimage.util.view_as_windows(x, shape, step=stride)
         winds = winds.reshape(-1, *winds.shape[-3:])
 
@@ -124,6 +132,73 @@ def get_frame_transform(frame_transform_str, img_size):
     print('Frame transforms:', tt, fts)
 
     return tt
+
+def get_salient_frame_aug(frame_aug, patch_size):
+    train_transform = []
+
+    if 'flip' in frame_aug:
+        train_transform += [transforms.RandomHorizontalFlip()]
+    
+    train_transform += [transforms.ToTensor()]
+    train_transform = transforms.Compose(train_transform)
+
+    if 'grid' in frame_aug:
+        shape = np.array(patch_size)
+        # Saliency map only has a single channel
+        shape[2] = 1
+        aug = patch_grid(train_transform, shape=shape)
+    else:
+        aug = train_transform
+
+    return aug
+
+def get_salient_frame_transform(fts, img_size):
+    tt = []
+    norm_size = torchvision.transforms.Resize((img_size, img_size))
+
+    if 'crop' in fts:
+        tt.append(torchvision.transforms.RandomResizedCrop(
+            img_size, scale=(0.8, 0.95), ratio=(0.7, 1.3), interpolation=2),)
+    else:
+        tt.append(norm_size)
+
+    if 'flip' in fts:
+        tt.append(torchvision.transforms.RandomHorizontalFlip())
+
+    return tt
+
+
+def get_train_saliency_transform(args):
+    """
+    Identical to get_train_transforms except:
+        - No color normalization
+        - No color jitter
+        - Single channel
+    """
+    norm_size = torchvision.transforms.Resize((args.img_size, args.img_size))
+
+    frame_transform = get_salient_frame_transform(args.frame_transforms, args.img_size)
+    frame_aug = get_salient_frame_aug(args.frame_aug, args.patch_size)
+    frame_aug = [frame_aug] if args.frame_aug != '' else []
+    
+    transform = frame_transform + frame_aug
+
+    train_transform = MapTransform(
+            torchvision.transforms.Compose(transform)
+        )
+
+    plain = torchvision.transforms.Compose([
+        torchvision.transforms.ToPILImage(),
+        norm_size, 
+        transforms.ToTensor(),
+    ])
+
+    def with_orig(x):
+        x = train_transform(x), plain(x[0])
+        return x
+
+    return with_orig
+
 
 def get_train_transforms(args):
     norm_size = torchvision.transforms.Resize((args.img_size, args.img_size))

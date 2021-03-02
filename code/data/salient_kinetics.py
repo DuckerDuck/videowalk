@@ -5,9 +5,11 @@ from torchvision.datasets.utils import list_dir
 from torchvision.datasets.folder import make_dataset
 from torchvision.datasets.vision import VisionDataset
 from torch import Tensor
+import torch
 from .kinetics import Kinetics400
 from pathlib import Path
 from data.saliency.methods import gbvs_from_video
+from typing import Tuple
 
 import numpy as np
 
@@ -28,13 +30,15 @@ class SalientKinetics400(Kinetics400):
     """
 
     def __init__(self, root, salient_root, frames_per_clip, step_between_clips=1, frame_rate=None,
-                 extensions=('mp4',), transform=None, cached=None, _precomputed_metadata=None):
+                 extensions=('mp4',), transform=None, salient_transform=None, 
+                 cached=None, _precomputed_metadata=None):
         super(SalientKinetics400, self).__init__(root, frames_per_clip, 
                                                 step_between_clips=step_between_clips,
                                                 frame_rate=frame_rate, extensions=extensions, 
                                                 transform=transform, cached=cached, 
                                                 _precomputed_metadata=_precomputed_metadata)
- 
+
+        self.salient_transform = salient_transform
         self.salient_root = Path(salient_root)
         if not self.salient_root.is_dir():
             # No salient cache available, create new one
@@ -47,28 +51,40 @@ class SalientKinetics400(Kinetics400):
         """
         Initializes saliency_maps from existing cache.
         """
-        # TODO: implement
-        print('init_from_cache not implemented')
+#        for video_dir in self.salient_root:
+#            pass
+
         return {}
 
-    def generate_saliency(self, video: Tensor, idx: int):
+    def generate_saliency(self, video: Tensor):
         """Generate saliency map for given video clip, will overwrite if 
-        files already exist. Transform should be applied before passing to this function.
+        files already exist.
 
         Args:
             video (Tensor): The video from which to generate saliency maps.
             idx (int): Index into the VideoClip object from Kinetics400 dataset.
         """
-        video_path = Path(self.video_clips.metadata['video_paths'][idx])
-        video_name = video_path.stem
+        # TODO: logic for switching method
+        saliency = gbvs_from_video(video)
 
-        destination_path = self.salient_root / video_name
+        return saliency
 
-        if not destination_path.is_dir():
-            destination_path.mkdir()
+    def get_saliency_clip(self, clip: Tensor, clip_location: Tuple[int, int]) -> Tensor:
+        """
+        Get (precomputed) saliency clip
+        """
+        video_idx, clip_idx = clip_location
 
-        saliency = gbvs_from_video(video, destination_path)
-        self.saliency_maps[idx] = saliency
+        video_path = self.video_clips.metadata['video_paths'][video_idx]
+        video_name = Path(video_path).stem
+        
+        cached_path = self.salient_root / video_name / f'{clip_idx}.pt'
+
+        if cached_path.is_file():
+            saliency = torch.load(cached_path)
+        else:
+            saliency = self.generate_saliency(clip)
+            torch.save(saliency, cached_path)
 
         return saliency
 
@@ -78,19 +94,21 @@ class SalientKinetics400(Kinetics400):
         while not success:
             try:
                 video, audio, info, video_idx = self.video_clips.get_clip(idx)
+
+                # This information is needed for saliency caching
+                clip_location = self.video_clips.get_clip_location(idx)
                 success = True
             except:
                 print('skipped idx', idx)
                 idx = np.random.randint(self.__len__())
 
-        if idx in self.saliency_maps:
-            saliency = self.saliency_maps[idx]
-        else:
-            saliency = self.generate_saliency(video, video_idx)
+        saliency = self.get_saliency_clip(video, clip_location)
 
         label = self.samples[video_idx][1]
         if self.transform is not None:
-            # video: tuple of (train_tranform, plain_transform)
             video = self.transform(video)
-            saliency = self.transform(saliency)
+
+        if self.salient_transform is not None:
+            saliency = self.salient_transform(saliency)
+
         return video, audio, saliency, label

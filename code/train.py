@@ -28,8 +28,9 @@ def train_one_epoch(model, optimizer, lr_scheduler, data_loader, device, epoch, 
     metric_logger.add_meter('clips/s', utils.SmoothedValue(window_size=10, fmt='{value:.3f}', device=device))
 
     header = 'Epoch: [{}]'.format(epoch)
+    logging_dataloader = metric_logger.log_every(data_loader, print_freq, header)
 
-    for step, (video, orig) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
+    for step, ((video, orig), (saliency, orig_sal)) in enumerate(logging_dataloader):
         start_time = time.time()
 
         video = video.to(device)
@@ -69,7 +70,6 @@ def _get_cache_path(filepath, args=None):
 
 def collate_fn(batch):
     # Only return video
-    batch = [d[0] for d in batch]
     return default_collate(batch)
 
 def salient_collate_fn(batch):
@@ -93,6 +93,10 @@ def main(args):
     cache_path = _get_cache_path(traindir, args)
     print("CACHE PATH:", cache_path)
 
+    transform_salient = None
+    if args.with_saliency:
+        salient_transform = utils.augs.get_train_saliency_transform(args)
+
     transform_train = utils.augs.get_train_transforms(args)
 
     def make_dataset(is_train, cached=None):
@@ -106,6 +110,7 @@ def main(args):
                     frames_per_clip=args.clip_len,
                     step_between_clips=1,
                     transform=transform_train,
+                    salient_transform=salient_transform,
                     extensions=('mp4'),
                     frame_rate=args.frame_skip,
                     _precomputed_metadata=cached

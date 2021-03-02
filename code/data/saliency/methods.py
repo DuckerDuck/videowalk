@@ -1,9 +1,10 @@
 from .gbvs.gbvs import compute_saliency
 from torchvision.utils import save_image
 from pathlib import Path
-from torch import Tensor, from_numpy, stack
+from typing import Optional
+import torch
 
-def gbvs_from_video(video: Tensor, target: Path) -> Tensor:
+def gbvs_from_video(video: torch.Tensor, target: Optional[Path] = None) -> torch.Tensor:
     """
     Generate saliency maps using Graph Based Visual Saliency algorithm:
     @article{harel2007graph,
@@ -23,8 +24,9 @@ def gbvs_from_video(video: Tensor, target: Path) -> Tensor:
 
     for f in range(frames):
         frame = video[f, :, :, :]
-        salience = from_numpy(compute_saliency(frame))
-        save_image(salience, target / f'{f}.png', normalize=True)
-        saliencies.append(salience)
+        salience = torch.from_numpy(compute_saliency(frame))
+        if target is not None:
+            save_image(salience, target / f'{f}.png', normalize=True)
+        saliencies.append(salience.byte())
 
-    return stack(saliencies)
+    return torch.stack(saliencies)
