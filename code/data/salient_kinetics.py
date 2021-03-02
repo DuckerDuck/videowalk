@@ -8,7 +8,7 @@ from torch import Tensor
 import torch
 from .kinetics import Kinetics400
 from pathlib import Path
-from data.saliency.methods import gbvs_from_video
+from data.saliency.methods import gbvs_from_video, itti_from_video
 from typing import Tuple
 
 import numpy as np
@@ -65,7 +65,9 @@ class SalientKinetics400(Kinetics400):
             idx (int): Index into the VideoClip object from Kinetics400 dataset.
         """
         # TODO: logic for switching method
-        saliency = gbvs_from_video(video)
+        # saliency = gbvs_from_video(video)
+        saliency = itti_from_video(video)
+
 
         return saliency
 
@@ -83,6 +85,7 @@ class SalientKinetics400(Kinetics400):
         if cached_path.is_file():
             saliency = torch.load(cached_path)
         else:
+            print('Generating saliency for ', video_name)
             saliency = self.generate_saliency(clip)
             if not (self.salient_root / video_name).is_dir():
                 (self.salient_root / video_name).mkdir()
@@ -99,12 +102,11 @@ class SalientKinetics400(Kinetics400):
 
                 # This information is needed for saliency caching
                 clip_location = self.video_clips.get_clip_location(idx)
+                saliency = self.get_saliency_clip(video, clip_location)
                 success = True
             except:
                 print('skipped idx', idx)
                 idx = np.random.randint(self.__len__())
-
-        saliency = self.get_saliency_clip(video, clip_location)
 
         label = self.samples[video_idx][1]
         if self.transform is not None:

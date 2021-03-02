@@ -1,6 +1,6 @@
 import time
 import cv2
-from saliency_models.helpers import ittiColorFeatureMaps, localMaximas, \
+from .helpers import ittiColorFeatureMaps, localMaximas, \
     ittiKochCenterSurroundFeatures, orientationFeatureMaps
 import numpy as np
 from matplotlib import pyplot as plt
