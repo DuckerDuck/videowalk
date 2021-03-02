@@ -84,6 +84,8 @@ class SalientKinetics400(Kinetics400):
             saliency = torch.load(cached_path)
         else:
             saliency = self.generate_saliency(clip)
+            if not (self.salient_root / video_name).is_dir():
+                (self.salient_root / video_name).mkdir()
             torch.save(saliency, cached_path)
 
         return saliency
