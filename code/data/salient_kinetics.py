@@ -47,14 +47,6 @@ class SalientKinetics400(Kinetics400):
             # No salient cache available, create new one
             self.salient_root.mkdir()
          
-    def init_from_cache(self):
-        """
-        Initializes saliency_maps from existing cache.
-        """
-#        for video_dir in self.salient_root:
-#            pass
-
-        return {}
 
     def generate_saliency(self, video: Tensor):
         """Generate saliency map for given video clip, will overwrite if 
@@ -93,9 +85,7 @@ class SalientKinetics400(Kinetics400):
             img = Image.open(f)
             img = img.convert('L')
         img = to_tensor(img)
-        # Color channel is the last dimension
-        img = img.permute(1, 2, 0)
-        return img
+        return img.squeeze()
 
     def get_saliency_clip(self, clip: Tensor, clip_location: Tuple[int, int]) -> Tensor:
         """
@@ -115,7 +105,6 @@ class SalientKinetics400(Kinetics400):
 
             if cached_path.is_file():
                 saliency_frame = self.load_frame(cached_path)
-                print(saliency_frame.shape, 'load_frame shape')
             else:
                 print(f'Generating saliency for video {video_name} frame {frame}')
                 saliency_frame = self.generate_saliency(clip[frame_in_clip])
@@ -147,11 +136,9 @@ class SalientKinetics400(Kinetics400):
         saliency = self.get_saliency_clip(video, clip_location)
         label = self.samples[video_idx][1]
         if self.transform is not None:
-            print('vid', video.dtype, video.shape)
             video = self.transform(video)
 
         if self.salient_transform is not None:
-            print('sal', saliency.dtype, saliency.shape)
             saliency = self.salient_transform(saliency)
 
         return video, audio, saliency, label
