@@ -4,12 +4,15 @@ from torchvision.datasets.video_utils import VideoClips
 from torchvision.datasets.utils import list_dir
 from torchvision.datasets.folder import make_dataset
 from torchvision.datasets.vision import VisionDataset
+from torchvision.utils import save_image
+from torchvision.transforms.functional import to_tensor
+from PIL import Image
 from torch import Tensor
 import torch
 from .kinetics import Kinetics400
 from pathlib import Path
-from data.saliency.methods import gbvs_from_video, itti_from_video
-from typing import Tuple
+from data.saliency.methods import gbvs_from_video, itti_from_frame
+from typing import Tuple, List
 
 import numpy as np
 
@@ -43,10 +46,7 @@ class SalientKinetics400(Kinetics400):
         if not self.salient_root.is_dir():
             # No salient cache available, create new one
             self.salient_root.mkdir()
-            self.saliency_maps = {}
-        else:
-            self.saliency_maps = self.init_from_cache()
- 
+         
     def init_from_cache(self):
         """
         Initializes saliency_maps from existing cache.
@@ -66,10 +66,36 @@ class SalientKinetics400(Kinetics400):
         """
         # TODO: logic for switching method
         # saliency = gbvs_from_video(video)
-        saliency = itti_from_video(video)
+        saliency = itti_from_frame(video)
 
 
         return saliency
+
+    def clip_idx_to_frame(self, clip_location: Tuple[int, int]) -> List:
+        video_idx, clip_idx = clip_location
+
+        video_pts = self.video_clips.metadata['video_pts'][video_idx]
+        clip_pts = self.video_clips.clips[video_idx][clip_idx]
+
+        # Find specific frame
+        # clip_length = clip.shape[0]
+        # start_frame = (clip_idx - 1) * clip_length
+        # frame_idx = video_pts == clip_pts[0]
+        # assert start_frame == frame_idx.nonzero(as_tuple=True)[0]
+        
+        # Map video_pts values to indices, theses indices are the frame ids
+        to_frame = { pts.item(): i for i, pts in enumerate(video_pts) }
+        frames = [to_frame[pts.item()] for pts in clip_pts]
+        return frames
+
+    def load_frame(self, path: Path) -> Tensor:
+        with open(str(path), 'rb') as f:
+            img = Image.open(f)
+            img = img.convert('L')
+        img = to_tensor(img)
+        # Color channel is the last dimension
+        img = img.permute(1, 2, 0)
+        return img
 
     def get_saliency_clip(self, clip: Tensor, clip_location: Tuple[int, int]) -> Tensor:
         """
@@ -78,20 +104,30 @@ class SalientKinetics400(Kinetics400):
         video_idx, clip_idx = clip_location
 
         video_path = self.video_clips.metadata['video_paths'][video_idx]
-        video_name = Path(video_path).stem
         
-        cached_path = self.salient_root / video_name / f'{clip_idx}.pt'
+        frames = self.clip_idx_to_frame(clip_location)
+        
+        video_name = Path(video_path).stem
 
-        if cached_path.is_file():
-            saliency = torch.load(cached_path)
-        else:
-            print('Generating saliency for ', video_name)
-            saliency = self.generate_saliency(clip)
-            if not (self.salient_root / video_name).is_dir():
-                (self.salient_root / video_name).mkdir()
-            torch.save(saliency, cached_path)
+        saliencies = []
+        for frame_in_clip, frame in enumerate(frames):
+            cached_path = self.salient_root / video_name / f'{frame}.png'
 
-        return saliency
+            if cached_path.is_file():
+                saliency_frame = self.load_frame(cached_path)
+                print(saliency_frame.shape, 'load_frame shape')
+            else:
+                print(f'Generating saliency for video {video_name} frame {frame}')
+                saliency_frame = self.generate_saliency(clip[frame_in_clip])
+
+                if not (self.salient_root / video_name).is_dir():
+                    (self.salient_root / video_name).mkdir()
+                 
+                save_image(saliency_frame, cached_path, normalize=True)
+
+            saliencies.append(saliency_frame.byte())
+
+        return torch.stack(saliencies)
 
 
     def __getitem__(self, idx):
@@ -102,17 +138,20 @@ class SalientKinetics400(Kinetics400):
 
                 # This information is needed for saliency caching
                 clip_location = self.video_clips.get_clip_location(idx)
-                saliency = self.get_saliency_clip(video, clip_location)
+                # saliency = self.get_saliency_clip(video, clip_location)
                 success = True
             except:
                 print('skipped idx', idx)
                 idx = np.random.randint(self.__len__())
-
+        
+        saliency = self.get_saliency_clip(video, clip_location)
         label = self.samples[video_idx][1]
         if self.transform is not None:
+            print('vid', video.dtype, video.shape)
             video = self.transform(video)
 
         if self.salient_transform is not None:
+            print('sal', saliency.dtype, saliency.shape)
             saliency = self.salient_transform(saliency)
 
         return video, audio, saliency, label

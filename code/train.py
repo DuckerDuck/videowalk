@@ -18,6 +18,7 @@ from torchvision.datasets.samplers.clip_sampler import RandomClipSampler, Unifor
 
 import utils
 from model import CRW
+from salient_model import SCRW
 
 def train_one_epoch(model, optimizer, lr_scheduler, data_loader, device, epoch, print_freq,
     vis=None, checkpoint_fn=None):
@@ -34,7 +35,8 @@ def train_one_epoch(model, optimizer, lr_scheduler, data_loader, device, epoch, 
         start_time = time.time()
 
         video = video.to(device)
-        output, loss, diagnostics = model(video)
+        saliency = saliency.to(device)
+        output, loss, diagnostics = model(video, saliency)
         loss = loss.mean()
 
         if vis is not None and np.random.random() < 0.01:
@@ -184,7 +186,10 @@ def main(args):
     vis = utils.visualize.Visualize(args) if args.visualize else None
 
     print("Creating model")
-    model = CRW(args, vis=vis).to(device)
+    if args.with_saliency:
+        model = SCRW(args, vis=vis).to(device)
+    else:
+        model = CRW(args, vis=vis).to(device)
     print(model)
     
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)

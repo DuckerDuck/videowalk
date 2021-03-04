@@ -184,7 +184,7 @@ def vis_flow_plt(u, v, x1, x2, A):
     return plt
 
 
-def frame_pair(x, ff, mm, t1, t2, A, AA, xent_loss, viz):
+def frame_pair(x, ff, mm, t1, t2, A, AA, xent_loss, viz, caption_suf=''):
     normalize = lambda xx: (xx-xx.min()) / (xx-xx.min()).max()
     spatialize = lambda xx: xx.view(*xx.shape[:-1], int(xx.shape[-1]**0.5), int(xx.shape[-1]**0.5))
 
@@ -235,8 +235,8 @@ def frame_pair(x, ff, mm, t1, t2, A, AA, xent_loss, viz):
         pca2 = torchvision.utils.make_grid(torch.Tensor(pca_ff[N:]), nrow=int(N**0.5), padding=1, pad_value=1)
         img1 = torchvision.utils.make_grid(normalize(x1)*255, nrow=int(N**0.5), padding=1, pad_value=1)
         img2 = torchvision.utils.make_grid(normalize(x2)*255, nrow=int(N**0.5), padding=1, pad_value=1)
-        viz.images(torch.stack([pca1,pca2]), nrow=4, win='pca_viz_combined1', opts=dict(caption='pca'))
-        viz.images(torch.stack([img1.cpu(),img2.cpu()]), opts=dict(title=f"{t1} {t2}", caption='pca comb'), nrow=4, win='pca_viz_combined2')
+        viz.images(torch.stack([pca1,pca2]), nrow=4, win=f'pca_viz_combined1_{caption_suf}', opts=dict(caption=f'pca {caption_suf}'))
+        viz.images(torch.stack([img1.cpu(),img2.cpu()]), opts=dict(title=f"{t1} {t2}", caption=f'patches {caption_suf}'), nrow=4, win=f'pca_viz_combined2_{caption_suf}')
     
     ##############################################
     # LOSS VIS

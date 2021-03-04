@@ -5,48 +5,36 @@ from pathlib import Path
 from typing import Optional
 import torch
 
-def gbvs_from_video(video: torch.Tensor, target: Optional[Path] = None) -> torch.Tensor:
-    """
-    Generate saliency maps using Graph Based Visual Saliency algorithm:
-    @article{harel2007graph,
-      title={Graph-based visual saliency},
-      author={Harel, Jonathan and Koch, Christof and Perona, Pietro},
-      year={2007},
-      publisher={MIT Press}
-    }
-    Args:
-        video (Tensor): Video split into patches of size (frames, N*channels, height, width)
-        target (Path): Location on disk to save the frames
-    """
-    video = video.numpy()
+def gbvs_from_frame(frame: torch.Tensor) -> torch.Tensor:
+    frame = frame.numpy()
+    salience = torch.from_numpy(compute_gbvs(frame))
+    return salience
+
+def itti_from_frame(frame: torch.Tensor) -> torch.Tensor:
+    frame = frame.numpy()
+    salience = torch.from_numpy(compute_itti(frame))
+    return salience
+
+def _method_from_video(video: torch.Tensor, method, target: Optional[Path] = None) -> torch.Tensor:
     frames, height, width, channels = video.shape
 
     saliencies = []
 
     for f in range(frames):
         frame = video[f, :, :, :]
-        salience = torch.from_numpy(compute_gbvs(frame))
+        salience = method(frame)
+
         if target is not None:
             save_image(salience, target / f'{f}.png', normalize=True)
+
         saliencies.append(salience.byte())
 
     return torch.stack(saliencies)
 
+def gbvs_from_video(video: torch.Tensor, target: Optional[Path] = None) -> torch.Tensor:
+    return _method_from_video(video, gbvs_from_frame, target)
 
-def itti_from_video(video: torch.Tensor) -> torch.Tensor:
-    """
-    """
-
-    video = video.numpy()
-    frames, height, width, channels = video.shape
-
-    saliencies = []
-
-    for f in range(frames):
-        frame = video[f, :, :, :]
-        salience = torch.from_numpy(compute_itti(frame))
-        saliencies.append(salience.byte())
-
-    return torch.stack(saliencies)
+def itti_from_video(video: torch.Tensor, target: Optional[Path] = None) -> torch.Tensor:
+    return _method_from_video(video, itti_from_frame, target)
 
 
