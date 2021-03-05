@@ -94,25 +94,29 @@ class SalientKinetics400(Kinetics400):
         video_idx, clip_idx = clip_location
 
         video_path = self.video_clips.metadata['video_paths'][video_idx]
+        video_path = Path(video_path)
+        video_name = video_path.stem
+
+        # Maintain folder structure or original dataset
+        subfolders = video_path.relative_to(self.root).parent
         
         frames = self.clip_idx_to_frame(clip_location)
-        
-        video_name = Path(video_path).stem
 
         saliencies = []
         for frame_in_clip, frame in enumerate(frames):
-            cached_path = self.salient_root / video_name / f'{frame}.png'
+            cached_folder = self.salient_root / subfolders / video_name
+            cached_file = cached_folder / f'{frame}.png'
 
-            if cached_path.is_file():
-                saliency_frame = self.load_frame(cached_path)
+            if cached_file.is_file():
+                saliency_frame = self.load_frame(cached_file)
             else:
                 print(f'Generating saliency for video {video_name} frame {frame}')
                 saliency_frame = self.generate_saliency(clip[frame_in_clip])
 
-                if not (self.salient_root / video_name).is_dir():
-                    (self.salient_root / video_name).mkdir()
+                if not cached_folder.is_dir():
+                    cached_folder.mkdir(parents=True)
                  
-                save_image(saliency_frame, cached_path, normalize=True)
+                save_image(saliency_frame, cached_file, normalize=True)
 
             saliencies.append(saliency_frame.byte())
 
