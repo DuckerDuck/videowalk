@@ -191,7 +191,8 @@ class SCRW(nn.Module):
         if (np.random.random() < 0.02) and (self.vis is not None): # and False:
             with torch.no_grad():
                 self.visualize_frame_pair(x, q, mm, 'reg')
-                self.visualize_frame_pair(s, q, mm, 'sal')
+                utils.visualize.vis_patch(s, self.vis.vis, 'saliency', title='Saliency', caption='Patches Saliency Map')
+                utils.visualize.vis_patch(x, self.vis.vis, 'video', title='Video', caption='Patches Video')
                 if _N > 1: # and False:
                     self.visualize_patches(x, q)
 

@@ -183,6 +183,18 @@ def vis_flow_plt(u, v, x1, x2, A):
 
     return plt
 
+def vis_patch(video: torch.Tensor, vis, vis_win, frame=0, title='', caption=''):
+    """
+    Visualizes a single patch frame
+    """
+    B, N, C, T, H, W = video.shape
+    normalize = lambda xx: (xx-xx.min()) / (xx-xx.min()).max()
+
+    patched_frame = video[0, :, :, frame]
+    image = torchvision.utils.make_grid(normalize(patched_frame)*255, nrow=int(N**0.5), padding=1, pad_value=1)
+    opts = dict(title=title, caption=caption)
+    vis.image(image.cpu(), opts=opts, win=vis_win)
+
 
 def frame_pair(x, ff, mm, t1, t2, A, AA, xent_loss, viz, caption_suf=''):
     normalize = lambda xx: (xx-xx.min()) / (xx-xx.min()).max()
@@ -225,6 +237,7 @@ def frame_pair(x, ff, mm, t1, t2, A, AA, xent_loss, viz, caption_suf=''):
 
     else:  # Patches as input
         # X here is B x N x C x T x H x W
+
         x1, x2 =  x[0, :, :, t1],  x[0, :, :, t2]
         m1, m2 = mm[0, :, :, t1], mm[0, :, :, t2]
 
