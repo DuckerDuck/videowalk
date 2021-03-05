@@ -135,10 +135,17 @@ class SalientKinetics400(Kinetics400):
         
         saliency = self.get_saliency_clip(video, clip_location)
         label = self.samples[video_idx][1]
+
+        # The random state is kept constant for the two transforms, this
+        # makes sure RandomResizedCrop is applied the same way in both 
+        # video and saliency maps.
+        random_state = torch.get_rng_state()
+
         if self.transform is not None:
             video = self.transform(video)
 
         if self.salient_transform is not None:
+            torch.set_rng_state(random_state)
             saliency = self.salient_transform(saliency)
 
         return video, audio, saliency, label
