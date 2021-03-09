@@ -72,6 +72,7 @@ def _get_cache_path(filepath, args=None):
 
 def collate_fn(batch):
     # Only return video
+    batch = [d[0] for d in batch]
     return default_collate(batch)
 
 def salient_collate_fn(batch):
@@ -92,8 +93,9 @@ def main(args):
     valdir = os.path.join(args.data_path, 'val_256')
 
     st = time.time()
-    cache_path = _get_cache_path(traindir, args)
-    print("CACHE PATH:", cache_path)
+    if args.cache_dataset:
+        cache_path = _get_cache_path(traindir, args)
+        print("CACHE PATH:", cache_path)
 
     transform_salient = None
     if args.with_saliency:
