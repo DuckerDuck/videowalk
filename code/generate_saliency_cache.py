@@ -7,8 +7,10 @@ from pathlib import Path
 def generate(args):
     cached = None
     if args.cache_dataset:
-        cache_path = _get_cache_path(args.cache_dataset_path)
+        cache_path = _get_cache_path(args.cache_dataset_path, args)
+        print(cache_path)
         if Path(cache_path).is_file():
+            print('Using cached dataset')
             dataset, _ = torch.load(cache_path)
             cached = dict(video_paths=dataset.video_clips.video_paths,
                     video_fps=dataset.video_clips.video_fps,
