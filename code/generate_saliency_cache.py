@@ -30,6 +30,12 @@ def generate(args):
                     frame_rate=None,
                     _precomputed_metadata=cached
                 )
+    if args.cache_dataset and not Path(cache_path).is_file():
+        Path(cache_path).parent.mkdir()
+        dataset.transform = None
+        torch.save((dataset, path), cache_path)
+        print('Saved dataset cache to', cache_path)
+
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=args.batch_size,
         sampler=None, num_workers=args.workers//2,
