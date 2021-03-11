@@ -3,6 +3,7 @@ import numpy as np
 from sklearn.decomposition import PCA
 import cv2
 import imageio as io
+from torchvision.utils import save_image
 
 import visdom
 import time
@@ -183,17 +184,18 @@ def vis_flow_plt(u, v, x1, x2, A):
 
     return plt
 
-def vis_patch(video: torch.Tensor, vis, vis_win, frame=0, title='', caption=''):
+def vis_patch(video: torch.Tensor, vis=None, vis_win='default', frame=0, title='', caption=''):
     """
     Visualizes a single patch frame
     """
     B, N, C, T, H, W = video.shape
-    normalize = lambda xx: (xx-xx.min()) / (xx-xx.min()).max()
-
     patched_frame = video[0, :, :, frame]
-    image = torchvision.utils.make_grid(normalize(patched_frame)*255, nrow=int(N**0.5), padding=1, pad_value=1)
+    image = torchvision.utils.make_grid(patched_frame, nrow=int(N**0.5), padding=1, pad_value=1, normalize=True)
     opts = dict(title=title, caption=caption)
-    vis.image(image.cpu(), opts=opts, win=vis_win)
+    if vis is None:
+        save_image(image, title.replace(' ', '_') + '.png')
+    else:
+        vis.image(image.cpu(), opts=opts, win=vis_win)
 
 
 def frame_pair(x, ff, mm, t1, t2, A, AA, xent_loss, viz, caption_suf=''):

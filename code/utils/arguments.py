@@ -119,6 +119,7 @@ def train_args():
 
     parser.add_argument('--name', default='', type=str, help='')
     parser.add_argument('--dropout', default=0, type=float, help='dropout rate on A')
+    parser.add_argument('--saliency-dropout', default=0.1, type=float, help='salient dropout rate on A, a value of 0.1 will remove 10% of non-salient nodes')
     parser.add_argument('--zero-diagonal', help='always zero diagonal of A', action="store_true", )
     parser.add_argument('--flip', default=False, help='flip transitions (bug)', action="store_true", )
 

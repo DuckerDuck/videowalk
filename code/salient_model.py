@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision
 
 import numpy as np
 import utils
@@ -15,6 +14,7 @@ class SCRW(nn.Module):
         self.args = args
 
         self.edgedrop_rate = getattr(args, 'dropout', 0)
+        self.salient_edgedrop_rate = getattr(args, 'saliency_dropout', 0)
         self.featdrop_rate = getattr(args, 'featdrop', 0)
         self.temperature = getattr(args, 'temp', getattr(args, 'temperature', 0.07))
 
@@ -64,8 +64,19 @@ class SCRW(nn.Module):
         #     A = self.restrict(A)
 
         return A.squeeze(1) if in_t_dim < 4 else A
-    
-    def stoch_mat(self, A, zero_diagonal=False, do_dropout=True, do_sinkhorn=False):
+
+    def saliency_pixel_to_nodes(self, saliency):
+        """Saliency pixels to node weights.
+        Applies simple average over each salient patch.
+        """
+        B, N, C, T, H, W = saliency.shape
+        weights = torch.mean(saliency, dim=[4, 5])
+        # utils.visualize.vis_patch(saliency, None, 'saliency', title='Saliency', caption='Patches Saliency Map')
+        # Align dims with those of the features
+        weights = weights.permute(0, 2, 3, 1)
+        return weights
+
+    def stoch_mat(self, A, saliency=None, zero_diagonal=False, do_dropout=True, do_sinkhorn=False):
         ''' Affinity -> Stochastic Matrix '''
 
         if zero_diagonal:
@@ -73,6 +84,27 @@ class SCRW(nn.Module):
 
         if do_dropout and self.edgedrop_rate > 0:
             A[torch.rand_like(A) < self.edgedrop_rate] = -1e20
+        
+        if saliency != None:
+            # Current drop method (with mask) does not allow for gradients
+            # to flow all the way down to the saliency maps
+            N = saliency.shape[2]
+            drop_amount = int(N**2 * self.salient_edgedrop_rate)
+            # TODO: use two frames
+            
+            edge_saliency = torch.matmul(saliency.transpose(-1, -2), saliency)
+            
+            # Top-k does not work in 2D, flatten tensor to get edge ranking
+            # start_dim = 1 to not flatten in batch dimension
+            flat_edges = edge_saliency.flatten(start_dim=1)
+            _, to_drop = torch.topk(flat_edges, drop_amount, dim=1, largest=False)
+
+            # Turn flat indices into mask for affinities
+            mask = torch.scatter(torch.zeros_like(flat_edges, dtype=torch.bool), 1, 
+                                 to_drop, torch.ones_like(flat_edges, dtype=torch.bool))
+            mask = mask.view(edge_saliency.shape)
+            
+            A[mask] = -1e20
 
         if do_sinkhorn:
             return utils.sinkhorn_knopp((A/self.temperature).exp(), 
@@ -133,6 +165,7 @@ class SCRW(nn.Module):
         x = x.transpose(1, 2).view(B, _N, C, T, H, W)
         s = s.transpose(1, 2).view(B, SN, SC, T, H, W)
         q, mm = self.pixels_to_nodes(x)
+        saliency_q = self.saliency_pixel_to_nodes(s)
         B, C, T, N = q.shape
 
         if just_feats:
@@ -144,7 +177,7 @@ class SCRW(nn.Module):
         #################################################################
         walks = dict()
         As = self.affinity(q[:, :, :-1], q[:, :, 1:])
-        A12s = [self.stoch_mat(As[:, i], do_dropout=True) for i in range(T-1)]
+        A12s = [self.stoch_mat(As[:, t], do_dropout=True, saliency=saliency_q[:, :, t]) for t in range(T-1)]
 
         #################################################### Palindromes
         if not self.sk_targets:  
@@ -188,7 +221,7 @@ class SCRW(nn.Module):
         #################################################################
         # Visualizations
         #################################################################
-        if (np.random.random() < 0.02) and (self.vis is not None): # and False:
+        if (self.vis is not None) and (np.random.random() < 0.02): # and False:
             with torch.no_grad():
                 self.visualize_frame_pair(x, q, mm, 'reg')
                 utils.visualize.vis_patch(s, self.vis.vis, 'saliency', title='Saliency', caption='Patches Saliency Map')
@@ -224,7 +257,7 @@ class SCRW(nn.Module):
         f1, f2 = q[:, :, t1], q[:, :, t2]
 
         A = self.affinity(f1, f2)
-        A1, A2  = self.stoch_mat(A, False, False), self.stoch_mat(A.transpose(-1, -2), False, False)
+        A1, A2  = self.stoch_mat(A, None, False, False), self.stoch_mat(A.transpose(-1, -2), None, False, False)
         AA = A1 @ A2
         xent_loss = self.xent(torch.log(AA + EPS).flatten(0, -2), self.xent_targets(AA))
 

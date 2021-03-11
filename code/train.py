@@ -31,7 +31,7 @@ def train_one_epoch(model, optimizer, lr_scheduler, data_loader, device, epoch, 
     header = 'Epoch: [{}]'.format(epoch)
     logging_dataloader = metric_logger.log_every(data_loader, print_freq, header)
 
-    for step, ((video, orig), (saliency, orig_sal)) in enumerate(logging_dataloader):
+    for (video, _), (saliency, _) in logging_dataloader:
         start_time = time.time()
 
         video = video.to(device)
