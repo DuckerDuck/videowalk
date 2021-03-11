@@ -3,6 +3,7 @@ import torch
 from data.salient_kinetics import SalientKinetics400
 from train import _get_cache_path
 from pathlib import Path
+from tqdm import tqdm
 
 def generate(args):
     cached = None
@@ -45,17 +46,17 @@ def generate(args):
 
     prev_progress = -1
     data_generator = enumerate(data_loader)
+    pbar = tqdm(total=len(data_loader))
+    
     while True:
         i = 0
+        pbar.update(1)
         try:
             i, _ = next(data_generator)
         except Exception as e:
             print('skipped video clip', i, str(e))
 
-        progress = int((i / len(data_loader)) * 100)
-        if prev_progress != progress:
-            print(f'{progress}% videos processed')
-            prev_progress = progress
+    pbar.close()
         
 
 

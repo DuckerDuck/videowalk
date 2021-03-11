@@ -113,7 +113,7 @@ class SalientKinetics400(Kinetics400):
             if cached_file.is_file():
                 saliency_frame = self.load_frame(cached_file)
             else:
-                print(f'Generating saliency for video {video_name} frame {frame}')
+                # print(f'Generating saliency for video {video_name} frame {frame}')
                 saliency_frame = self.generate_saliency(clip[frame_in_clip])
 
                 if not cached_folder.is_dir():
