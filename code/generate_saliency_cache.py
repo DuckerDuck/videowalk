@@ -2,8 +2,18 @@ import argparse
 import torch
 from data.salient_kinetics import SalientKinetics400
 from train import _get_cache_path
+from pathlib import Path
 
 def generate(args):
+    cached = None
+    if args.cache_dataset:
+        cache_path = _get_cache_path(args.cache_dataset_path)
+        if Path(cache_path).is_file():
+            dataset, _ = torch.load(cache_path)
+            cached = dict(video_paths=dataset.video_clips.video_paths,
+                    video_fps=dataset.video_clips.video_fps,
+                    video_pts=dataset.video_clips.video_pts)
+
     dataset = SalientKinetics400(
                     args.data_path,
                     args.saliency_path,
@@ -13,7 +23,7 @@ def generate(args):
                     salient_transform=None,
                     extensions=('mp4'),
                     frame_rate=None,
-                    _precomputed_metadata=None
+                    _precomputed_metadata=cached
                 )
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=args.batch_size,
@@ -23,7 +33,14 @@ def generate(args):
     print(f'Total number of videos: {len(data_loader)}')
 
     prev_progress = -1
-    for i, _ in enumerate(data_loader):
+    data_generator = enumerate(data_loader)
+    while True:
+        i = 0
+        try:
+            i, _ = next(data_generator)
+        except Exception as e:
+            print('skipped video clip', i, str(e))
+
         progress = int((i / len(data_loader)) * 100)
         if prev_progress != progress:
             print(f'{progress}% videos processed')
@@ -42,6 +59,8 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--batch-size', default=8, type=int)
     parser.add_argument('-j', '--workers', default=16, type=int, metavar='N',
                         help='number of data loading workers (default: 16)')
+    parser.add_argument( "--cache-dataset", dest="cache_dataset", help="Cache the datasets for quicker initialization. It also serializes the transforms", action="store_true")
+    parser.add_argument( "--cache-dataset-path", dest="cache_dataset_path", help="Path of cached dataset", default=None)
  
     args = parser.parse_args()
 
