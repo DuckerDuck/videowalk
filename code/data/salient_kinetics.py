@@ -85,6 +85,9 @@ class SalientKinetics400(Kinetics400):
             img = Image.open(f)
             img = img.convert('L')
         img = to_tensor(img)
+        
+        if (torch.max(img) < 2):
+            img *= 255
         return img.squeeze()
 
     def get_saliency_clip(self, clip: Tensor, clip_location: Tuple[int, int]) -> Tensor:
@@ -119,7 +122,6 @@ class SalientKinetics400(Kinetics400):
                 save_image(saliency_frame, cached_file, normalize=True)
 
             saliencies.append(saliency_frame.byte())
-
         return torch.stack(saliencies)
 
 
