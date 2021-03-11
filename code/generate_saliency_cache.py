@@ -7,7 +7,8 @@ from pathlib import Path
 def generate(args):
     cached = None
     if args.cache_dataset:
-        cache_path = _get_cache_path(args.cache_dataset_path, args)
+        path = Path(args.data_path) / 'train_256'
+        cache_path = _get_cache_path(str(path), args)
         print(cache_path)
         if Path(cache_path).is_file():
             print('Using cached dataset')
@@ -15,6 +16,8 @@ def generate(args):
             cached = dict(video_paths=dataset.video_clips.video_paths,
                     video_fps=dataset.video_clips.video_fps,
                     video_pts=dataset.video_clips.video_pts)
+        else:
+            print('Not using cached dataset')
 
     dataset = SalientKinetics400(
                     args.data_path,
