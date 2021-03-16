@@ -27,6 +27,7 @@ def generate(args):
                     step_between_clips=1,
                     transform=None,
                     salient_transform=None,
+                    rescale=args.rescale,
                     extensions=('mp4'),
                     frame_rate=None,
                     _precomputed_metadata=cached
@@ -53,6 +54,8 @@ def generate(args):
         pbar.update(1)
         try:
             i, _ = next(data_generator)
+        except StopIteration:
+            break
         except Exception as e:
             print('skipped video clip', i, str(e))
 
@@ -69,6 +72,9 @@ if __name__ == '__main__':
     parser.add_argument('--saliency-path', default='./saliency_cache/',
         help='Path to saliency cache')
     parser.add_argument('-b', '--batch-size', default=8, type=int)
+    parser.add_argument('-rs', '--rescale', default=1, type=float, 
+    help='How much to scale video frames before computing saliency')
+
     parser.add_argument('-j', '--workers', default=16, type=int, metavar='N',
                         help='number of data loading workers (default: 16)')
     parser.add_argument( "--cache-dataset", dest="cache_dataset", help="Cache the datasets for quicker initialization. It also serializes the transforms", action="store_true")

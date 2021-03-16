@@ -1,3 +1,4 @@
+from utils.augs import get_resized_transform
 import torchvision.datasets.video_utils
 
 from torchvision.datasets.video_utils import VideoClips
@@ -11,7 +12,7 @@ from torch import Tensor
 import torch
 from .kinetics import Kinetics400
 from pathlib import Path
-from data.saliency.methods import gbvs_from_video, itti_from_frame
+from data.saliency.methods import gbvs_from_frame, itti_from_frame, harris_from_frame
 from typing import Tuple, List
 
 import numpy as np
@@ -33,7 +34,7 @@ class SalientKinetics400(Kinetics400):
     """
 
     def __init__(self, root, salient_root, frames_per_clip, step_between_clips=1, frame_rate=None,
-                 extensions=('mp4',), transform=None, salient_transform=None, 
+                 extensions=('mp4',), transform=None, salient_transform=None, rescale=1, 
                  cached=None, _precomputed_metadata=None):
         super(SalientKinetics400, self).__init__(root, frames_per_clip, 
                                                 step_between_clips=step_between_clips,
@@ -42,25 +43,31 @@ class SalientKinetics400(Kinetics400):
                                                 _precomputed_metadata=_precomputed_metadata)
 
         self.salient_transform = salient_transform
+        self.rescale = rescale
         self.salient_root = Path(salient_root)
         if not self.salient_root.is_dir():
             # No salient cache available, create new one
             self.salient_root.mkdir()
          
 
-    def generate_saliency(self, video: Tensor):
-        """Generate saliency map for given video clip, will overwrite if 
-        files already exist.
+    def generate_saliency(self, frame: Tensor):
+        """Generate saliency map for given frame
 
         Args:
-            video (Tensor): The video from which to generate saliency maps.
-            idx (int): Index into the VideoClip object from Kinetics400 dataset.
+            frame (Tensor): The frame from which to generate saliency maps.
         """
         # TODO: logic for switching method
         # saliency = gbvs_from_video(video)
-        saliency = itti_from_frame(video)
+        # saliency = harris_from_frame(video)
 
+        method = harris_from_frame
 
+        if self.rescale < 1:
+            transform = get_resized_transform(method, self.rescale)
+            saliency = transform(frame)
+        else:
+            saliency = method(frame)
+        
         return saliency
 
     def clip_idx_to_frame(self, clip_location: Tuple[int, int]) -> List:

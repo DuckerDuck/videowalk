@@ -56,7 +56,7 @@ def n_patches(x, n, transform, shape=(64, 64, 3), scale=[0.2, 0.8]):
 def patch_grid(transform, shape=(64, 64, 3), stride=[0.5, 0.5]):
     stride = np.random.random() * (stride[1] - stride[0]) + stride[0]
     stride = [int(shape[0]*stride), int(shape[1]*stride), shape[2]]
-   
+
     def to_pil(x):
         if x.shape[2] == 3:
             return Image.fromarray(x)
@@ -167,6 +167,36 @@ def get_salient_frame_transform(fts, img_size):
 
     return tt
 
+def get_resized_transform(main_transform, scale):
+    """
+    Return transform that applies a resize before and after
+    the main_transform argument.
+    """
+    if scale >= 1:
+        return None
+
+    def transforms(video):
+        original_scale = video.shape[1], video.shape[0]
+        scaled_scale = int(original_scale[0] * scale), int(original_scale[1] * scale)
+        pre = torchvision.transforms.Compose([
+            lambda x: x.permute(2, 0, 1),
+            torchvision.transforms.Resize(scaled_scale),
+            lambda x: x.permute(2, 1, 0),
+        ])
+
+        post = torchvision.transforms.Compose([
+            lambda x: x.unsqueeze(-1).permute(2, 0, 1),
+            torchvision.transforms.Resize(original_scale),
+            lambda x: x.permute(2, 1, 0).squeeze(),
+            ])
+        # Apply transforms
+        stage1 = pre(video)
+        stage2 = main_transform(stage1)
+        stage3 = post(stage2)
+        return stage3
+    
+    return transforms
+    
 
 def get_train_saliency_transform(args):
     """
