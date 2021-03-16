@@ -115,7 +115,7 @@ class SalientKinetics400(Kinetics400):
         saliencies = []
         for frame_in_clip, frame in enumerate(frames):
             cached_folder = self.salient_root / subfolders / video_name
-            cached_file = cached_folder / f'{frame}.png'
+            cached_file = cached_folder / f'{frame}.jpg'
 
             if cached_file.is_file():
                 saliency_frame = self.load_frame(cached_file)
