@@ -1,5 +1,7 @@
 from .gbvs.gbvs import compute_saliency as compute_gbvs
 from .gbvs.ittikochneibur import compute_saliency as compute_itti
+from skimage.feature import corner_harris
+from skimage.color import rgb2gray
 from torchvision.utils import save_image
 from pathlib import Path
 from typing import Optional
@@ -14,6 +16,11 @@ def itti_from_frame(frame: torch.Tensor) -> torch.Tensor:
     frame = frame.numpy()
     salience = torch.from_numpy(compute_itti(frame))
     return salience
+
+def harris_from_frame(frame: torch.Tensor) -> torch.Tensor:
+    frame = frame.numpy()
+    corners = corner_harris(rgb2gray(frame))
+    return torch.from_numpy(corners)
 
 def _method_from_video(video: torch.Tensor, method, target: Optional[Path] = None) -> torch.Tensor:
     frames, height, width, channels = video.shape
@@ -37,4 +44,5 @@ def gbvs_from_video(video: torch.Tensor, target: Optional[Path] = None) -> torch
 def itti_from_video(video: torch.Tensor, target: Optional[Path] = None) -> torch.Tensor:
     return _method_from_video(video, itti_from_frame, target)
 
-
+def harris_from_video(video: torch.Tensor, target: Optional[Path] = None) -> torch.Tensor:
+    return _method_from_video(video, harris_from_frame, target)
