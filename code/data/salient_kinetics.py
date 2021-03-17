@@ -60,7 +60,7 @@ class SalientKinetics400(Kinetics400):
         # saliency = gbvs_from_video(video)
         # saliency = harris_from_frame(video)
 
-        method = itti_from_frame
+        method = harris_from_frame
 
         if self.rescale < 1:
             transform = get_resized_transform(method, self.rescale)

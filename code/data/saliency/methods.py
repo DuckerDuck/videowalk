@@ -1,11 +1,12 @@
 from .gbvs.gbvs import compute_saliency as compute_gbvs
 from .gbvs.ittikochneibur import compute_saliency as compute_itti
-from skimage.feature import corner_harris
 from skimage.color import rgb2gray
 from torchvision.utils import save_image
 from pathlib import Path
 from typing import Optional
 import torch
+import numpy as np
+import cv2
 
 def gbvs_from_frame(frame: torch.Tensor) -> torch.Tensor:
     frame = frame.numpy()
@@ -18,9 +19,26 @@ def itti_from_frame(frame: torch.Tensor) -> torch.Tensor:
     return salience
 
 def harris_from_frame(frame: torch.Tensor) -> torch.Tensor:
-    frame = frame.numpy()
-    corners = corner_harris(rgb2gray(frame))
+    frame = rgb2gray(frame.numpy())
+    frame = np.float32(frame)
+    corners = corners = cv2.cornerHarris(frame, 3, 7, 0.02)
     return torch.from_numpy(corners)
+
+def optical_flow_from_frames(frame_a: torch.Tensor, frame_b: torch.Tensor) -> torch.Tensor:
+    frame_a = rgb2gray(frame_a.numpy())
+    frame_b = rgb2gray(frame_b.numpy())
+    
+    flow = cv2.calcOpticalFlowFarneback(frame_a, frame_a, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+    u = flow[:, :, 0]
+    v = flow[:, :, 1]
+    
+    # Remove camera motion
+    v = v - np.mean(v)
+    u = u - np.mean(u)
+
+    mag = np.sqrt(u ** 2 + v ** 2)
+    norm = (mag - np.min(mag)) / np.max(mag)
+    return norm
 
 def _method_from_video(video: torch.Tensor, method, target: Optional[Path] = None) -> torch.Tensor:
     frames, height, width, channels = video.shape
