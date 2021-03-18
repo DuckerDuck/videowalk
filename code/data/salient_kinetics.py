@@ -97,6 +97,16 @@ class SalientKinetics400(Kinetics400):
             img *= 255
         return img.squeeze()
 
+    def save_frame(self, frame: Tensor, path: Path):
+        if torch.max(frame) < 2:
+            frame *= 255
+
+        frame = frame.numpy().astype(np.uint8)
+
+        with open(str(path), 'w') as f:
+            img = Image.fromarray(frame)
+            img.save(f, format='jpeg')
+
     def get_saliency_clip(self, clip: Tensor, clip_location: Tuple[int, int]) -> Tensor:
         """
         Get (precomputed) saliency clip
@@ -126,7 +136,8 @@ class SalientKinetics400(Kinetics400):
                 if not cached_folder.is_dir():
                     cached_folder.mkdir(parents=True)
                  
-                save_image(saliency_frame, cached_file, normalize=True)
+                self.save_frame(saliency_frame, cached_file)
+
 
             saliencies.append(saliency_frame.byte())
         return torch.stack(saliencies)
