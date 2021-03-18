@@ -158,6 +158,7 @@ def main(args):
             print("Saving dataset_train to {}".format(cache_path))
             utils.mkdir(os.path.dirname(cache_path))
             dataset.transform = None
+            dataset.salient_transform = None
             torch.save((dataset, traindir), cache_path)
     
     if hasattr(dataset, 'video_clips'):
