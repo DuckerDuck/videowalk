@@ -48,9 +48,8 @@ def generate(args):
     prev_progress = -1
     data_generator = enumerate(data_loader)
     pbar = tqdm(total=len(data_loader))
-    
+    i = 0
     while True:
-        i = 0
         pbar.update(1)
         try:
             i, _ = next(data_generator)
