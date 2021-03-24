@@ -53,7 +53,7 @@ def to_saliency(video: Path, args):
     # Setup saliency destination directory
     root = Path(args.data_path)
     subfolders = video.relative_to(root).parent
-    output_path = Path(args.saliency_path) / subfolders
+    output_path = Path(args.saliency_path) / subfolders / video.stem
     output_path.mkdir(parents=True)
     
     # Setup docker connection
