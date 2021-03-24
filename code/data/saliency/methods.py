@@ -1,12 +1,69 @@
 from .gbvs.gbvs import compute_saliency as compute_gbvs
 from .gbvs.ittikochneibur import compute_saliency as compute_itti
+from torchvision.transforms.functional import to_tensor
 from skimage.color import rgb2gray
 from torchvision.utils import save_image
 from pathlib import Path
+from PIL import Image
 from typing import Optional
 import torch
 import numpy as np
 import cv2
+import docker
+import hashlib
+
+# method_from_frame should return tensor of shape (height, width) in range 0 - 255
+
+def mbs_from_frame(frame: torch.Tensor) -> torch.Tensor:
+    # Check where to store temporary files
+    tmp_dir = Path('/scratch/')
+    if not tmp_dir.exists():
+        tmp_dir = Path('./.mbs_tmp')
+        if not tmp_dir.exists():
+            tmp_dir.mkdir()
+    
+    # Create temporary filesystem
+    folder_name = hashlib.sha224(str(frame[0]).encode()).hexdigest()
+    input_path = tmp_dir / (folder_name + '_in')
+    if not input_path.exists():
+        input_path.mkdir()
+    
+    output_path = tmp_dir / (folder_name + '_out')
+    if not output_path.exists():
+        output_path.mkdir()
+
+    # Save frame to input folder
+    frame_np = frame.numpy().astype(np.uint8)
+    input_file = input_path / 'frame.jpg'
+    with open(str(input_file), 'w') as f:
+        img = Image.fromarray(frame_np)
+        img.save(f, format='jpeg')
+    
+    # Setup docker connection
+    client = docker.from_env()
+    volumes = {
+        str(input_path.resolve()): {'bind': '/MBS/input', 'mode': 'ro'},
+        str(output_path.resolve()): {'bind': '/MBS/output', 'mode': 'rw'}
+    }
+    result = client.containers.run('mbs:latest', 'octave process_folder.m', volumes=volumes)
+
+    # Read back
+    output_file = output_path / 'frame_MBplus.jpg'
+    with open(str(output_file), 'rb') as f:
+        saliency = Image.open(f)
+        saliency = saliency.convert('L')
+        saliency = to_tensor(saliency).squeeze()
+        if (torch.max(saliency) < 2):
+            saliency *= 255
+    
+    # Remove temporary files
+    input_file.unlink()
+    output_file.unlink()
+    input_path.rmdir()
+    output_path.rmdir()
+
+    return saliency
+
 
 def gbvs_from_frame(frame: torch.Tensor) -> torch.Tensor:
     frame = frame.numpy()

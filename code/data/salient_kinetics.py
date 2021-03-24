@@ -12,7 +12,7 @@ from torch import Tensor
 import torch
 from .kinetics import Kinetics400
 from pathlib import Path
-from data.saliency.methods import gbvs_from_frame, itti_from_frame, harris_from_frame
+from data.saliency.methods import gbvs_from_frame, itti_from_frame, harris_from_frame, mbs_from_frame
 from typing import Tuple, List
 
 import numpy as np
