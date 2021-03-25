@@ -1,5 +1,3 @@
-import torchvision.datasets.video_utils
-
 from torchvision.datasets.video_utils import VideoClips
 from torchvision.datasets.utils import list_dir
 from torchvision.datasets.folder import make_dataset

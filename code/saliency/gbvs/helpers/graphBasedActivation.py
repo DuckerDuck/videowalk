@@ -5,7 +5,7 @@ from . import markovChain
 
 
 def loadGraphDistanceMatrixFor28x32():
-    f = scipy.io.loadmat("data/saliency/gbvs/resources/28__32__m__2.mat")
+    f = scipy.io.loadmat("saliency/gbvs/resources/28__32__m__2.mat")
     distanceMat = np.array(f['grframe'])[0][0][0]
     lx = np.array(f['grframe'])[0][0][1]
     dim = np.array(f['grframe'])[0][0][2]

@@ -1,12 +1,30 @@
 from .gbvs.gbvs import compute_saliency as compute_gbvs
 from .gbvs.ittikochneibur import compute_saliency as compute_itti
+from torchvision.transforms.functional import to_tensor
 from skimage.color import rgb2gray
 from torchvision.utils import save_image
 from pathlib import Path
+from PIL import Image
 from typing import Optional
 import torch
 import numpy as np
 import cv2
+import docker
+import hashlib
+
+# method_from_frame should return tensor of shape (height, width) in range 0 - 255
+
+def mbs_from_folder(input_path: Path, output_path: Path):
+
+    # Setup docker connection
+    client = docker.from_env()
+    volumes = {
+        str(input_path.resolve()): {'bind': '/MBS/input', 'mode': 'ro'},
+        str(output_path.resolve()): {'bind': '/MBS/output', 'mode': 'rw'}
+    }
+    result = client.containers.run('mbs:latest', 'octave process_folder.m', volumes=volumes)
+    return result
+
 
 def gbvs_from_frame(frame: torch.Tensor) -> torch.Tensor:
     frame = frame.numpy()
