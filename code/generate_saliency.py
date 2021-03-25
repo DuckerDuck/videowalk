@@ -153,11 +153,11 @@ def generate(args):
     while True:
         pbar.update(1)
         try:
-            _, video = next(data_generator)
+            i, _ = next(data_generator)
         except StopIteration:
             break
         except Exception as e:
-            print('skipped video clip', str(video), str(e))
+            print('skipped video clip', str(i), str(e))
 
     pbar.close()
 
