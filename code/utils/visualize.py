@@ -197,6 +197,54 @@ def vis_patch(video: torch.Tensor, vis=None, vis_win='default', frame=0, title='
     else:
         vis.image(image.cpu(), opts=opts, win=vis_win)
 
+def vis_affinity(video: torch.Tensor, affinity: torch.Tensor, frames=(0, 1), vis=None, 
+                 vis_win='default', title='', caption=''):
+    B, N, C, T, H, W = video.shape
+    frame1 = video[0, :, :, frames[0]]
+    frame2 = video[0, :, :, frames[1]]
+    
+    # Shape: NxN
+    affinity12 = affinity[frames[0]].squeeze()
+    
+    threshold = torch.max(affinity12) - 0.1
+
+    if threshold < 0.01:
+        threshold = 0.01
+
+    nrow = int(N**0.5)
+    image1 = torchvision.utils.make_grid(frame1, nrow=nrow, padding=1, pad_value=1, normalize=True)
+    image2 = torchvision.utils.make_grid(frame2, nrow=nrow, padding=1, pad_value=1, normalize=True)
+    
+    offset = image1.shape[1]
+
+    sbs_images = torchvision.utils.make_grid([image1, image2], nrow=2, padding=0, pad_value=0, normalize=False)
+    
+    plt.figure()
+    plt.imshow(sbs_images.permute(1, 2, 0))
+    
+    for x1 in range(nrow):
+        for y1 in range(nrow):
+            # Draw a line from each point in image 1 to each point in image 2
+            for x2 in range(nrow):
+                for y2 in range(nrow):
+                    # Calculate patch centers (assume square patches)
+                    x1_c = (x1 * H) + 0.5 * H
+                    x2_c = (x2 * H) + 0.5 * H + offset
+                    y1_c = (y1 * H) + 0.5 * H
+                    y2_c = (y2 * H) + 0.5 * H
+
+                    # Get affinity of two patches
+                    aff = affinity12[(x1 * nrow) + y1, (x2 * nrow) + y2]
+                    if aff >= threshold:
+                        plt.plot([x1_c, x2_c], [y1_c, y2_c], alpha=0.7)
+
+    plt.tight_layout()
+
+    opts = dict(title=title, caption=caption)
+    if vis is None:
+        plt.savefig(title.replace(' ', '_') + '.png')
+    else:
+        vis.matplot(plt.gcf(), opts=opts, win=vis_win)
 
 def frame_pair(x, ff, mm, t1, t2, A, AA, xent_loss, viz, caption_suf=''):
     normalize = lambda xx: (xx-xx.min()) / (xx-xx.min()).max()

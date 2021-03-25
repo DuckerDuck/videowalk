@@ -105,7 +105,6 @@ class SCRW(nn.Module):
             mask = mask.view(edge_saliency.shape)
             
             A[mask] = -1e20
-
         if do_sinkhorn:
             return utils.sinkhorn_knopp((A/self.temperature).exp(), 
                 tol=0.01, max_iter=100, verbose=False)
@@ -224,6 +223,7 @@ class SCRW(nn.Module):
         if (self.vis is not None) and (np.random.random() < 0.02): # and False:
             with torch.no_grad():
                 self.visualize_frame_pair(x, q, mm, 'reg')
+                utils.visualize.vis_affinity(x, A12s, vis=self.vis.vis, title='Affinity', caption='Affinity')
                 utils.visualize.vis_patch(s, self.vis.vis, 'saliency', title='Saliency', caption='Patches Saliency Map')
                 utils.visualize.vis_patch(x, self.vis.vis, 'video', title='Video', caption='Patches Video')
                 if _N > 1: # and False:
