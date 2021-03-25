@@ -55,7 +55,7 @@ class VideoDataset(Dataset):
             ffmpeg
             .input(str(video))
             .output(str(input_path / '%01d.jpg'))
-            .run(quiet=False)
+            .run(quiet=True)
         )
         print('Converted video to image sequence', video.name)
         
@@ -98,7 +98,6 @@ def generate(args):
             break
         except Exception as e:
             print('skipped video clip', i, str(e))
-            return
 
     pbar.close()
 
