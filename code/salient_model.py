@@ -76,7 +76,7 @@ class SCRW(nn.Module):
         weights = weights.permute(0, 2, 3, 1)
         return weights
 
-    def stoch_mat(self, A, saliency=None, zero_diagonal=False, do_dropout=True, do_sinkhorn=False):
+    def stoch_mat(self, A, saliency_A=None, zero_diagonal=False, do_dropout=True, do_sinkhorn=False):
         ''' Affinity -> Stochastic Matrix '''
 
         if zero_diagonal:
@@ -85,24 +85,21 @@ class SCRW(nn.Module):
         if do_dropout and self.edgedrop_rate > 0:
             A[torch.rand_like(A) < self.edgedrop_rate] = -1e20
         
-        if saliency != None:
+        if saliency_A != None:
             # Current drop method (with mask) does not allow for gradients
             # to flow all the way down to the saliency maps
-            N = saliency.shape[2]
+            N = saliency_A.shape[2]
             drop_amount = int(N**2 * self.salient_edgedrop_rate)
-            # TODO: use two frames
-            
-            edge_saliency = torch.matmul(saliency.transpose(-1, -2), saliency)
             
             # Top-k does not work in 2D, flatten tensor to get edge ranking
             # start_dim = 1 to not flatten in batch dimension
-            flat_edges = edge_saliency.flatten(start_dim=1)
+            flat_edges = saliency_A.flatten(start_dim=1)
             _, to_drop = torch.topk(flat_edges, drop_amount, dim=1, largest=False)
 
             # Turn flat indices into mask for affinities
             mask = torch.scatter(torch.zeros_like(flat_edges, dtype=torch.bool), 1, 
                                  to_drop, torch.ones_like(flat_edges, dtype=torch.bool))
-            mask = mask.view(edge_saliency.shape)
+            mask = mask.view(saliency_A.shape)
             
             A[mask] = -1e20
         if do_sinkhorn:
@@ -176,10 +173,12 @@ class SCRW(nn.Module):
         #################################################################
         walks = dict()
         As = self.affinity(q[:, :, :-1], q[:, :, 1:])
-        A12s = [self.stoch_mat(As[:, t], do_dropout=True, saliency=saliency_q[:, :, t]) for t in range(T-1)]
+        saliency_A = self.affinity(saliency_q[:, :, :-1], saliency_q[:, :, 1:])
+        A12s = [self.stoch_mat(As[:, t], do_dropout=True, saliency_A=saliency_A[:, t]) for t in range(T-1)]
 
         #################################################### Palindromes
         if not self.sk_targets:  
+            # TODO: Need saliency here too
             A21s = [self.stoch_mat(As[:, i].transpose(-1, -2), do_dropout=True) for i in range(T-1)]
             AAs = []
             for i in list(range(1, len(A12s))):
