@@ -85,7 +85,7 @@ class SCRW(nn.Module):
         if do_dropout and self.edgedrop_rate > 0:
             A[torch.rand_like(A) < self.edgedrop_rate] = -1e20
         
-        if saliency_A != None:
+        if saliency_A != None and False:
             # Current drop method (with mask) does not allow for gradients
             # to flow all the way down to the saliency maps
             N = saliency_A.shape[2]
@@ -102,6 +102,13 @@ class SCRW(nn.Module):
             mask = mask.view(saliency_A.shape)
             
             A[mask] = -1e20
+
+        if saliency_A != None and self.salient_edgedrop_rate > 0:
+            # Weigh current affinities by saliency
+            # A = A * (saliency_A * self.salient_edgedrop_rate)
+            A = A + (saliency_A * self.salient_edgedrop_rate)
+
+
         if do_sinkhorn:
             return utils.sinkhorn_knopp((A/self.temperature).exp(), 
                 tol=0.01, max_iter=100, verbose=False)
@@ -179,7 +186,7 @@ class SCRW(nn.Module):
         #################################################### Palindromes
         if not self.sk_targets:  
             # TODO: Need saliency here too
-            A21s = [self.stoch_mat(As[:, i].transpose(-1, -2), do_dropout=True) for i in range(T-1)]
+            A21s = [self.stoch_mat(As[:, i].transpose(-1, -2), saliency_A=saliency_A[:, i].transpose(-1, -2), do_dropout=True) for i in range(T-1)]
             AAs = []
             for i in list(range(1, len(A12s))):
                 g = A12s[:i+1] + A21s[:i+1][::-1]

@@ -206,7 +206,7 @@ def vis_affinity(video: torch.Tensor, affinity: torch.Tensor, frames=(0, 1), vis
     # Shape: NxN
     affinity12 = affinity[frames[0]].squeeze()
     
-    threshold = torch.max(affinity12) - 0.1
+    threshold = torch.max(affinity12) - 0.15
 
     if threshold < 0.01:
         threshold = 0.01
