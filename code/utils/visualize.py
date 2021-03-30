@@ -206,10 +206,10 @@ def vis_affinity(video: torch.Tensor, affinity: torch.Tensor, frames=(0, 1), vis
     # Shape: BxNxN
     affinity12 = affinity[frames[0]][0]
     
-    threshold = torch.max(affinity12)
-    threshold = 0.0001
-    #if threshold < 0.01:
-    #    threshold = 0.01
+    threshold = torch.max(affinity12) - 0.15
+
+    if threshold < 0.01:
+        threshold = 0.01
 
     nrow = int(N**0.5)
     image1 = torchvision.utils.make_grid(frame1, nrow=nrow, padding=1, pad_value=1, normalize=True)
@@ -228,8 +228,8 @@ def vis_affinity(video: torch.Tensor, affinity: torch.Tensor, frames=(0, 1), vis
             for x2 in range(nrow):
                 for y2 in range(nrow):
                     # Calculate patch centers (assume square patches)
-                    x1_c = (x1 * H) + 0.5 * H + offset
-                    x2_c = (x2 * H) + 0.5 * H 
+                    x1_c = (x1 * H) + 0.5 * H 
+                    x2_c = (x2 * H) + 0.5 * H + offset
                     y1_c = (y1 * H) + 0.5 * H
                     y2_c = (y2 * H) + 0.5 * H
 

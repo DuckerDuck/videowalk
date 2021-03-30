@@ -1,2 +1,11 @@
 venv/*
 **/__pycache__/*
+*.jpg
+*.png
+*.mp4
+*.pt
+*.pth
+global_results-val.csv
+per-sequence_results-val.csv
+kinetics/*
+wandb/
