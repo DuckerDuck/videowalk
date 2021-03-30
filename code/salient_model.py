@@ -180,7 +180,17 @@ class SCRW(nn.Module):
         #################################################################
         walks = dict()
         As = self.affinity(q[:, :, :-1], q[:, :, 1:])
-        saliency_A = self.affinity(saliency_q[:, :, :-1], saliency_q[:, :, 1:])
+        #saliency_A = self.affinity(saliency_q[:, :, :-1], saliency_q[:, :, 1:])
+
+        sals = []
+        # saliency_q: B x C x T x N
+        for t in range(T-1):
+            s_tmp = torch.matmul(saliency_q[:, :, t].transpose(1, 2), saliency_q[:, :, t + 1]).transpose(1, 2)
+            sals.append(s_tmp)
+        
+        saliency_A = torch.stack(sals, dim=1)
+        
+
         A12s = [self.stoch_mat(As[:, t], do_dropout=True, saliency_A=saliency_A[:, t]) for t in range(T-1)]
 
         #################################################### Palindromes
@@ -226,10 +236,11 @@ class SCRW(nn.Module):
         #################################################################
         # Visualizations
         #################################################################
-        if (self.vis is not None) and (np.random.random() < 0.02): # and False:
+        if (self.vis is not None):# and (np.random.random() < 0.02): # and False:
             with torch.no_grad():
                 self.visualize_frame_pair(x, q, mm, 'reg')
-                utils.visualize.vis_affinity(x, A12s, vis=self.vis.vis, title='Affinity', caption='Affinity')
+                # utils.visualize.vis_affinity(x, A12s, vis=self.vis.vis, title='Affinity', caption='Affinity')
+                utils.visualize.vis_affinity(s, [saliency_A[:, t] for t in range(T-1)], vis=self.vis.vis, title='Saliency Affinity', caption='Saliency Affinity')
                 utils.visualize.vis_patch(s, self.vis.vis, 'saliency', title='Saliency', caption='Patches Saliency Map')
                 utils.visualize.vis_patch(x, self.vis.vis, 'video', title='Video', caption='Patches Video')
                 if _N > 1: # and False:
