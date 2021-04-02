@@ -200,11 +200,11 @@ def vis_patch(video: torch.Tensor, vis=None, vis_win='default', frame=0, title='
 def vis_affinity(video: torch.Tensor, affinity: torch.Tensor, frames=(0, 1), vis=None, 
                  vis_win='default', title='', caption=''):
     B, N, C, T, H, W = video.shape
-    frame1 = video[0, :, :, frames[0]]
-    frame2 = video[0, :, :, frames[1]]
+    frame1 = video[0, :, :, frames[0]].cpu()
+    frame2 = video[0, :, :, frames[1]].cpu()
     
     # Shape: BxNxN
-    affinity12 = affinity[frames[0]][0]
+    affinity12 = affinity[frames[0]][0].cpu()
     
     threshold = torch.max(affinity12) - 0.15
 
