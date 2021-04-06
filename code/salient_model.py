@@ -227,11 +227,11 @@ class SCRW(nn.Module):
         #################################################################
         # Visualizations
         #################################################################
-        if (self.vis is not None):# and (np.random.random() < 0.02): # and False:
+        if (self.vis is not None) and (np.random.random() < 0.02): # and False:
             with torch.no_grad():
                 self.visualize_frame_pair(x, q, mm, 'reg')
-                utils.visualize.vis_affinity(x, A12s, vis=self.vis.vis, title='Affinity', caption='Affinity', vis_win='Regular affinity')
-                utils.visualize.vis_affinity(s, [saliency_A[:, t] for t in range(T-1)], vis=self.vis.vis, title='Saliency Affinity', caption='Saliency Affinity')
+                #utils.visualize.vis_affinity(x, A12s, vis=self.vis.vis, title='Affinity', caption='Affinity', vis_win='Regular affinity')
+                #utils.visualize.vis_affinity(s, [saliency_A[:, t] for t in range(T-1)], vis=self.vis.vis, title='Saliency Affinity', caption='Saliency Affinity')
                 utils.visualize.vis_patch(s, self.vis.vis, 'saliency', title='Saliency', caption='Patches Saliency Map')
                 utils.visualize.vis_patch(x, self.vis.vis, 'video', title='Video', caption='Patches Video')
                 if _N > 1: # and False:
