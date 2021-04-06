@@ -1,4 +1,4 @@
-venv/*
+**/venv/*
 **/__pycache__/*
 *.jpg
 *.png
@@ -9,3 +9,5 @@ global_results-val.csv
 per-sequence_results-val.csv
 kinetics/*
 wandb/
+job_logs/*
+saliency_cache*
