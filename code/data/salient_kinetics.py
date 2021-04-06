@@ -26,7 +26,7 @@ class SalientKinetics400(Kinetics400):
 
     def __init__(self, root, salient_root, frames_per_clip, step_between_clips=1, frame_rate=None,
                  extensions=('mp4',), transform=None, salient_transform=None, rescale=1, 
-                 cached=None, _precomputed_metadata=None):
+                 cached=None, _precomputed_metadata=None, frame_offset=0):
         super(SalientKinetics400, self).__init__(root, frames_per_clip, 
                                                 step_between_clips=step_between_clips,
                                                 frame_rate=frame_rate, extensions=extensions, 
@@ -36,6 +36,8 @@ class SalientKinetics400(Kinetics400):
         self.salient_transform = salient_transform
         self.rescale = rescale
         self.salient_root = Path(salient_root)
+        # Frame offset can be used if a saliency method uses 1-indexing
+        self.frame_offset = frame_offset
         if not self.salient_root.is_dir():
             # No salient cache available, create new one
             self.salient_root.mkdir()
@@ -45,12 +47,6 @@ class SalientKinetics400(Kinetics400):
 
         video_pts = self.video_clips.metadata['video_pts'][video_idx]
         clip_pts = self.video_clips.clips[video_idx][clip_idx]
-
-        # Find specific frame
-        # clip_length = clip.shape[0]
-        # start_frame = (clip_idx - 1) * clip_length
-        # frame_idx = video_pts == clip_pts[0]
-        # assert start_frame == frame_idx.nonzero(as_tuple=True)[0]
         
         # Map video_pts values to indices, theses indices are the frame ids
         to_frame = { pts.item(): i for i, pts in enumerate(video_pts) }
@@ -86,7 +82,7 @@ class SalientKinetics400(Kinetics400):
         
         saliencies = []
         for frame in frames:
-            cached_file = cached_folder / f'{frame}.jpg'
+            cached_file = cached_folder / f'{frame + self.frame_offset}.jpg'
 
             if cached_file.is_file():
                 saliency_frame = self.load_frame(cached_file)

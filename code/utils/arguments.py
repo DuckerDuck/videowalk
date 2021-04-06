@@ -84,6 +84,7 @@ def train_args():
         help='Apply saliency methods to videos, use in conjunction with saliency-cache argument')
     parser.add_argument('--saliency-path', default='./saliency_cache/',
         help='Path to saliency cache')
+    parser.add_argument('--saliency-frame-index', default=0, type=int, help='Path to saliency frames are zero or one indexed.')
     parser.add_argument('--device', default='cuda', help='device')
     parser.add_argument('--clip-len', default=8, type=int, metavar='N',
                         help='number of frames per clip')

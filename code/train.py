@@ -117,7 +117,8 @@ def main(args):
                     salient_transform=salient_transform,
                     extensions=('mp4'),
                     frame_rate=args.frame_skip,
-                    _precomputed_metadata=cached
+                    _precomputed_metadata=cached,
+                    frame_offset=args.saliency_frame_index
                 )
             else: 
                 return Kinetics400(
