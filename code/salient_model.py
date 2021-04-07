@@ -9,7 +9,7 @@ EPS = 1e-20
 
 
 class SCRW(nn.Module):
-    def __init__(self, args, vis=None):
+    def __init__(self, args, vis=None, variant=None):
         super(SCRW, self).__init__()
         self.args = args
 
@@ -31,6 +31,7 @@ class SCRW(nn.Module):
         self.flip = getattr(args, 'flip', False)
         self.sk_targets = getattr(args, 'sk_targets', False)
         self.vis = vis
+        self.variant = variant
 
     def infer_dims(self):
         in_sz = 256
@@ -85,29 +86,32 @@ class SCRW(nn.Module):
         if do_dropout and self.edgedrop_rate > 0:
             A[torch.rand_like(A) < self.edgedrop_rate] = -1e20
         
-        if saliency_A != None and False:
-            # Current drop method (with mask) does not allow for gradients
-            # to flow all the way down to the saliency maps
-            N = saliency_A.shape[2]
-            drop_amount = int(N**2 * self.salient_edgedrop_rate)
-            
-            # Top-k does not work in 2D, flatten tensor to get edge ranking
-            # start_dim = 1 to not flatten in batch dimension
-            flat_edges = saliency_A.flatten(start_dim=1)
-            _, to_drop = torch.topk(flat_edges, drop_amount, dim=1, largest=False)
+        if saliency_A != None: 
+            if self.variant == 'dropout':
+                # Current drop method (with mask) does not allow for gradients
+                # to flow all the way down to the saliency maps
+                N = saliency_A.shape[2]
+                drop_amount = int(N**2 * self.salient_edgedrop_rate)
+                
+                # Top-k does not work in 2D, flatten tensor to get edge ranking
+                # start_dim = 1 to not flatten in batch dimension
+                flat_edges = saliency_A.flatten(start_dim=1)
+                _, to_drop = torch.topk(flat_edges, drop_amount, dim=1, largest=False)
 
-            # Turn flat indices into mask for affinities
-            mask = torch.scatter(torch.zeros_like(flat_edges, dtype=torch.bool), 1, 
-                                 to_drop, torch.ones_like(flat_edges, dtype=torch.bool))
-            mask = mask.view(saliency_A.shape)
-            
-            A[mask] = -1e20
+                # Turn flat indices into mask for affinities
+                mask = torch.scatter(torch.zeros_like(flat_edges, dtype=torch.bool), 1, 
+                                    to_drop, torch.ones_like(flat_edges, dtype=torch.bool))
+                mask = mask.view(saliency_A.shape)
+                
+                A[mask] = -1e20
 
-        if saliency_A != None and self.salient_edgedrop_rate > 0:
-            # Weigh current affinities by saliency
-            # A = A * (saliency_A * self.salient_edgedrop_rate)
-            A = A + (saliency_A * self.salient_edgedrop_rate)
-
+            elif self.variant == 'add':
+                A = A + (saliency_A * self.salient_edgedrop_rate)
+            elif self.variant == 'add-subtract':
+                # 0.15 is the mean value of saliency values
+                A = A + ((saliency_A - 0.15) * self.salient_edgedrop_rate)
+            elif self.variant == 'multiply':
+                A = A * saliency_A
 
         if do_sinkhorn:
             return utils.sinkhorn_knopp((A/self.temperature).exp(), 
@@ -186,7 +190,6 @@ class SCRW(nn.Module):
 
         #################################################### Palindromes
         if not self.sk_targets:  
-            # TODO: Need saliency here too
             A21s = [self.stoch_mat(As[:, i].transpose(-1, -2), saliency_A=saliency_A[:, i].transpose(-1, -2), do_dropout=True) for i in range(T-1)]
             AAs = []
             for i in list(range(1, len(A12s))):

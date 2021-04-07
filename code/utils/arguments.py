@@ -82,6 +82,7 @@ def train_args():
         help='/home/ajabri/data/places365_standard/train/ | /data/ajabri/kinetics/')
     parser.add_argument('--with-saliency', dest='with_saliency', action='store_true',
         help='Apply saliency methods to videos, use in conjunction with saliency-cache argument')
+    parser.add_argument('--saliency-variant', type=str, dest='saliency_variant', help='Saliency variant')
     parser.add_argument('--saliency-path', default='./saliency_cache/',
         help='Path to saliency cache')
     parser.add_argument('--saliency-frame-index', default=0, type=int, help='Path to saliency frames are zero or one indexed.')

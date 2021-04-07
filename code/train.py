@@ -191,7 +191,7 @@ def main(args):
 
     print("Creating model")
     if args.with_saliency:
-        model = SCRW(args, vis=vis).to(device)
+        model = SCRW(args, vis=vis, variant=args.saliency_variant).to(device)
     else:
         model = CRW(args, vis=vis).to(device)
     print(model)
