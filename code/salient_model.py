@@ -111,7 +111,7 @@ class SCRW(nn.Module):
                 # 0.15 is the mean value of saliency values
                 A = A + ((saliency_A - 0.15) * self.salient_edgedrop_rate)
             elif self.variant == 'multiply':
-                A = A * saliency_A
+                A = A * (saliency_A + self.salient_edgedrop_rate)
 
         if do_sinkhorn:
             return utils.sinkhorn_knopp((A/self.temperature).exp(), 
