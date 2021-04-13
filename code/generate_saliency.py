@@ -17,6 +17,7 @@ from saliency.methods import *
 method_index = {
     'harris': (harris_from_video, False),
     'gbvs': (gbvs_from_video, False),
+    'flow': (optical_flow_from_video, False),
     'mbs': (mbs_from_folder, True)
 }
 
@@ -58,8 +59,13 @@ class VideoDataset(Dataset):
 
 
     def save_frame(self, frame: torch.Tensor, path: Path):
+        h, w = frame.shape[:2]
         if torch.max(frame) < 2:
             frame *= 255
+
+        # In case we have 2 color channels, add a third empty one
+        if len(frame.shape) > 2 and frame.shape[2] == 2:
+            frame = torch.cat([frame, torch.zeros(h, w, 1)], dim=-1)
 
         frame = frame.numpy().astype(np.uint8)
 
@@ -90,7 +96,7 @@ class VideoDataset(Dataset):
         output_path, exists = self.saliency_destination(video_path)
 
         if exists:
-            print('Video already generated, skipping', video.name)
+            print('Video already generated, skipping', video_path.name)
             return
 
         for i, frame in enumerate(saliency):
@@ -170,8 +176,8 @@ if __name__ == '__main__':
         help='Path to saliency cache')
     parser.add_argument('--method', default='harris', help='Method to use with saliency generation')
     parser.add_argument('-b', '--batch-size', default=8, type=int)
-    parser.add_argument('-rs', '--rescale', default=1, type=float, 
-    help='How much to scale video frames before computing saliency')
+    # parser.add_argument('-rs', '--rescale', default=1, type=float, 
+    # help='How much to scale video frames before computing saliency')
 
     parser.add_argument('-j', '--workers', default=16, type=int, metavar='N',
                         help='number of data loading workers (default: 16)')
