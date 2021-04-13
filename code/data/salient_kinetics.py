@@ -26,7 +26,7 @@ class SalientKinetics400(Kinetics400):
 
     def __init__(self, root, salient_root, frames_per_clip, step_between_clips=1, frame_rate=None,
                  extensions=('mp4',), transform=None, salient_transform=None, rescale=1, 
-                 cached=None, _precomputed_metadata=None, frame_offset=0):
+                 cached=None, _precomputed_metadata=None, frame_offset=0, saliency_channels=1):
         super(SalientKinetics400, self).__init__(root, frames_per_clip, 
                                                 step_between_clips=step_between_clips,
                                                 frame_rate=frame_rate, extensions=extensions, 
@@ -38,6 +38,10 @@ class SalientKinetics400(Kinetics400):
         self.salient_root = Path(salient_root)
         # Frame offset can be used if a saliency method uses 1-indexing
         self.frame_offset = frame_offset
+        
+        # Saliency maps are grayscale (1 channel) and optical flow contains Fx and Fy  (2 channels)
+        self.saliency_channels = saliency_channels
+
         if not self.salient_root.is_dir():
             # No salient cache available, create new one
             self.salient_root.mkdir()
@@ -56,8 +60,17 @@ class SalientKinetics400(Kinetics400):
     def load_frame(self, path: Path) -> Tensor:
         with open(str(path), 'rb') as f:
             img = Image.open(f)
-            img = img.convert('L')
+            if self.saliency_channels == 1:
+                img = img.convert('L')
+            elif self.saliency_channels == 2:
+                img = img.convert('RGB')
+
         img = to_tensor(img)
+
+        if self.saliency_channels == 2:
+            # Discard B channel
+            img = img[:2, :, :].permute(1, 2, 0)
+            # img shape: (h, w, 2)
         
         if (torch.max(img) < 2):
             img *= 255

@@ -248,6 +248,37 @@ def vis_affinity(video: torch.Tensor, affinity: torch.Tensor, frames=(0, 1), vis
         plt.savefig(title.replace(' ', '_') + '.png')
     else:
         vis.matplot(plt.gcf(), opts=opts, win=vis_win)
+    
+def vis_flow(video: torch.Tensor, flow: torch.Tensor, frame_t=0, vis=None, 
+                 vis_win='default', title='', caption=''):
+    B, N, C, T, H, W = video.shape
+    frame = video[0, :, :, frame_t].cpu()
+    flow = flow[0, :, :, frame_t].cpu()
+    
+    nrow = int(N**0.5)
+
+    image = torchvision.utils.make_grid(frame, nrow=nrow, padding=1, pad_value=1, normalize=True)
+    
+    plt.figure()
+    plt.imshow(image.permute(1, 2, 0))
+    
+    for x in range(nrow):
+        for y in range(nrow):
+            # Center of patches
+            x_c = (x * H) + 0.5 * H
+            y_c = (y * H) + 0.5 * H
+
+            mean_uv = torch.mean(flow[(x * nrow) + y, ...], dim=[1, 2])
+
+            plt.arrow(x_c, y_c, mean_uv[0] * W, mean_uv[1] * H, color='red')
+
+    plt.tight_layout()
+
+    opts = dict(title=title, caption=caption)
+    # if vis is None:
+    plt.savefig(title.replace(' ', '_') + '.png')
+    # else:
+        # vis.matplot(plt.gcf(), opts=opts, win=vis_win)
 
 def frame_pair(x, ff, mm, t1, t2, A, AA, xent_loss, viz, caption_suf=''):
     normalize = lambda xx: (xx-xx.min()) / (xx-xx.min()).max()

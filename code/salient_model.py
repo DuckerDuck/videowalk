@@ -112,6 +112,8 @@ class SCRW(nn.Module):
                 A = A + ((saliency_A - 0.15) * self.salient_edgedrop_rate)
             elif self.variant == 'multiply':
                 A = A * (saliency_A + self.salient_edgedrop_rate)
+            elif self.variant == 'flow':
+                raise NotImplementedError
 
         if do_sinkhorn:
             return utils.sinkhorn_knopp((A/self.temperature).exp(), 
@@ -164,7 +166,12 @@ class SCRW(nn.Module):
         # Shapes saliency map are the same as video input, except only 1 channel
         _, _, SN, _, _ = s.shape
         SC = 1
- 
+
+        # If using optical flow, saliency maps contain two channels (fx, fy)
+        if self.variant == 'flow':
+            _, _, SN, _, _ = s.shape
+            SC = 2
+            SN = SN // SC
     
         #################################################################
         # Pixels to Nodes 
@@ -173,6 +180,11 @@ class SCRW(nn.Module):
         s = s.transpose(1, 2).view(B, SN, SC, T, H, W)
         q, mm = self.pixels_to_nodes(x)
         saliency_q = self.saliency_pixel_to_nodes(s)
+
+        if self.variant == 'flow':
+            utils.visualize.vis_flow(x, s, title='flow')
+            raise Exception
+
         B, C, T, N = q.shape
 
         if just_feats:

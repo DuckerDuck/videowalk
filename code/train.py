@@ -118,7 +118,8 @@ def main(args):
                     extensions=('mp4'),
                     frame_rate=args.frame_skip,
                     _precomputed_metadata=cached,
-                    frame_offset=args.saliency_frame_index
+                    frame_offset=args.saliency_frame_index,
+                    saliency_channels=2 if args.saliency_variant == 'flow' else 1
                 )
             else: 
                 return Kinetics400(
