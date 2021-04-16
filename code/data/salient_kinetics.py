@@ -5,7 +5,7 @@ import torch
 from .kinetics import Kinetics400
 from pathlib import Path
 from typing import Tuple, List
-
+from saliency.flow.optflow import flow_read
 import numpy as np
 
 class SalientKinetics400(Kinetics400):
@@ -57,6 +57,10 @@ class SalientKinetics400(Kinetics400):
         frames = [to_frame[pts.item()] for pts in clip_pts]
         return frames
 
+    def load_optical_flow_frame(self, path: Path) -> Tensor:
+        flow = flow_read(str(path))
+        return to_tensor(flow)
+
     def load_frame(self, path: Path) -> Tensor:
         with open(str(path), 'rb') as f:
             img = Image.open(f)
@@ -68,11 +72,11 @@ class SalientKinetics400(Kinetics400):
         img = to_tensor(img)
 
         if self.saliency_channels == 2:
-            # Discard B channel
+            # Discard B channel, img shape: (h, w, 2)
             img = img[:2, :, :].permute(1, 2, 0)
-            # img shape: (h, w, 2)
-        
-        if (torch.max(img) < 2):
+
+        # TODO: check if this code can be removed
+        if torch.max(img) < 2 and self.saliency_channels != 2:
             img *= 255
         return img.squeeze()
 
@@ -96,13 +100,19 @@ class SalientKinetics400(Kinetics400):
         saliencies = []
         for frame in frames:
             cached_file = cached_folder / f'{frame + self.frame_offset}.jpg'
+            
+            if self.saliency_channels == 2:
+                cached_file = cached_file.with_suffix('.flo')
 
             if cached_file.is_file():
-                saliency_frame = self.load_frame(cached_file)
+                if self.saliency_channels == 2:
+                    saliency_frame = self.load_optical_flow_frame(cached_file)
+                else:
+                    saliency_frame = self.load_frame(cached_file)
             else:
                 raise Exception(f'Could not load frame {cached_file} from video {video_idx}.')
 
-            saliencies.append(saliency_frame.byte())
+            saliencies.append(saliency_frame)
         return torch.stack(saliencies)
 
 

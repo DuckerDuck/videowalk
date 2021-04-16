@@ -11,6 +11,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from saliency.methods import *
+from saliency.flow.optflow import flow_write, flow_write_as_png
 
 
 # Method name: (callable, is docker method)
@@ -57,15 +58,17 @@ class VideoDataset(Dataset):
 
         return output_path, False
 
+    def save_optical_flow(self, flow: torch.Tensor, path: Path):
+        H, W, C = flow.shape
+        assert C == 2
+
+        flow_write_as_png(flow.numpy(), str(path))
+        path = path.with_suffix('.flo')
+        flow_write(flow.numpy(), str(path))
 
     def save_frame(self, frame: torch.Tensor, path: Path):
-        h, w = frame.shape[:2]
         if torch.max(frame) < 2:
             frame *= 255
-
-        # In case we have 2 color channels, add a third empty one
-        if len(frame.shape) > 2 and frame.shape[2] == 2:
-            frame = torch.cat([frame, torch.zeros(h, w, 1)], dim=-1)
 
         frame = frame.numpy().astype(np.uint8)
 
@@ -102,7 +105,10 @@ class VideoDataset(Dataset):
         for i, frame in enumerate(saliency):
             frame_path = output_path / f'{i}.jpg'
 
-            self.save_frame(frame, frame_path)
+            if self.method == 'flow':
+                self.save_optical_flow(frame, frame_path)
+            else:
+                self.save_frame(frame, frame_path)
 
 
     def to_saliency_docker(self, method: Callable, video: Path):

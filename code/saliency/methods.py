@@ -43,12 +43,7 @@ def optical_flow_from_frames(frame_a: torch.Tensor, frame_b: torch.Tensor) -> to
     frame_a = rgb2gray(frame_a.numpy())
     frame_b = rgb2gray(frame_b.numpy())
 
-    frame_a *= 255
-    frame_b *= 255
     flow = cv2.calcOpticalFlowFarneback(frame_a, frame_b, None, 0.5, 3, 15, 3, 7, 1.5, 0)
-    
-    bound = 15
-    flow = np.round((flow + bound) / (2 * bound) * 255)
 
     return torch.from_numpy(flow[:, :, :2]).squeeze()
 

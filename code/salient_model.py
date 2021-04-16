@@ -181,10 +181,6 @@ class SCRW(nn.Module):
         q, mm = self.pixels_to_nodes(x)
         saliency_q = self.saliency_pixel_to_nodes(s)
 
-        if self.variant == 'flow':
-            utils.visualize.vis_flow(x, s, title='flow')
-            raise Exception
-
         B, C, T, N = q.shape
 
         if just_feats:
@@ -247,6 +243,8 @@ class SCRW(nn.Module):
                 self.visualize_frame_pair(x, q, mm, 'reg')
                 #utils.visualize.vis_affinity(x, A12s, vis=self.vis.vis, title='Affinity', caption='Affinity', vis_win='Regular affinity')
                 #utils.visualize.vis_affinity(s, [saliency_A[:, t] for t in range(T-1)], vis=self.vis.vis, title='Saliency Affinity', caption='Saliency Affinity')
+                if self.variant == 'flow':
+                    utils.visualize.vis_flow(x, s, title='flow', vis_win='optical flow', vis=self.vis.vis)
                 utils.visualize.vis_patch(s, self.vis.vis, 'saliency', title='Saliency', caption='Patches Saliency Map')
                 utils.visualize.vis_patch(x, self.vis.vis, 'video', title='Video', caption='Patches Video')
                 if _N > 1: # and False:

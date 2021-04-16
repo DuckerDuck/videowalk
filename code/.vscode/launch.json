@@ -5,16 +5,32 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Train",
+            "name": "Train FLOW",
             "type": "python",
             "request": "launch",
             "program": "train.py",
             "args": ["--data-path", "../kinetics", "--frame-aug", "grid", "--dropout", "0.1", 
-                "--clip-len", "4", "--temp", "0.05", "--model-type", "scratch", "--workers", "16", 
-                "--batch-size", "20", "--cache-dataset", "--data-parallel", "--visualize", "--lr", "0.0001", 
-                "--device", "cpu"],
+                "--clip-len", "4", "--temp", "0.05", "--model-type", "scratch", "--workers", "1", 
+                "--batch-size", "1", "--data-parallel", "--visualize", "--lr", "0.0001", 
+                "--device", "cuda", "--saliency-frame-index",  "0", "--saliency-path", 
+                "saliency_cache_flow/", "--saliency-dropout", "0.1", "--with-saliency", 
+                "--saliency-variant", "flow"],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
         },
+        {
+            "name": "Train MBS",
+            "type": "python",
+            "request": "launch",
+            "program": "train.py",
+            "args": ["--data-path", "../kinetics", "--frame-aug", "grid", "--dropout", "0.1", 
+                "--clip-len", "4", "--temp", "0.05", "--model-type", "scratch", "--workers", "1", 
+                "--batch-size", "1", "--data-parallel", "--visualize", "--lr", "0.0001", 
+                "--device", "cuda", "--saliency-frame-index",  "0", "--saliency-path", 
+                "saliency_cache_mbs/", "--saliency-dropout", "0.1", "--with-saliency", 
+                "--saliency-variant", "add"],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        }
     ]
 }

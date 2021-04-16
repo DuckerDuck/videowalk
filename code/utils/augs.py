@@ -1,3 +1,4 @@
+
 import torchvision
 import skimage
 
@@ -6,6 +7,7 @@ from torchvision import transforms
 
 import numpy as np
 from PIL import Image
+from torchvision.transforms.functional import to_tensor
 
 IMG_MEAN = (0.4914, 0.4822, 0.4465)
 IMG_STD  = (0.2023, 0.1994, 0.2010)
@@ -22,7 +24,7 @@ class MapTransform(object):
         if isinstance(vid, Image.Image):
             return np.stack([self.transforms(vid)])
         
-        if isinstance(vid, torch.Tensor):
+        if isinstance(vid, torch.Tensor) and self.pil_convert:
             vid = vid.numpy()
 
         if self.pil_convert:
@@ -53,7 +55,7 @@ def n_patches(x, n, transform, shape=(64, 64, 3), scale=[0.2, 0.8]):
     return torch.cat(P, dim=0)
 
 
-def patch_grid(transform, shape=(64, 64, 3), stride=[0.5, 0.5]):
+def patch_grid(transform, shape=(64, 64, 3), stride=[0.5, 0.5], convert_to_pil=True):
     stride = np.random.random() * (stride[1] - stride[0]) + stride[0]
     stride = [int(shape[0]*stride), int(shape[1]*stride), shape[2]]
 
@@ -63,9 +65,16 @@ def patch_grid(transform, shape=(64, 64, 3), stride=[0.5, 0.5]):
         y = Image.fromarray(np.squeeze(x, axis=2))
         return y
 
+    pre_transform = to_pil
+    post_transform = lambda x: x
+    if not convert_to_pil:
+        pre_transform = to_tensor
+        post_transform = lambda x: x.numpy()
+    
     spatial_jitter = transforms.Compose([
-        lambda x: to_pil(x),
-        transforms.RandomResizedCrop(shape[0], scale=(0.7, 0.9))
+        pre_transform,
+        transforms.RandomResizedCrop(shape[0], scale=(0.7, 0.9)),
+        post_transform
     ])
 
     def aug(x):
@@ -79,7 +88,8 @@ def patch_grid(transform, shape=(64, 64, 3), stride=[0.5, 0.5]):
         winds = skimage.util.view_as_windows(x, shape, step=stride)
         winds = winds.reshape(-1, *winds.shape[-3:])
 
-        P = [transform(spatial_jitter(w)) for w in winds]
+        jitters = [spatial_jitter(w) for w in winds]
+        P = [transform(j) for j in jitters]
         return torch.cat(P, dim=0)
 
     return aug
@@ -133,20 +143,22 @@ def get_frame_transform(frame_transform_str, img_size):
 
     return tt
 
-def get_salient_frame_aug(frame_aug, patch_size):
+def get_salient_frame_aug(frame_aug, patch_size, channels=1):
     train_transform = []
 
     if 'flip' in frame_aug:
         train_transform += [transforms.RandomHorizontalFlip()]
     
     train_transform += [transforms.ToTensor()]
+    if channels == 2:
+        train_transform += [lambda x: x.permute(1, 0, 2)]
     train_transform = transforms.Compose(train_transform)
 
     if 'grid' in frame_aug:
         shape = np.array(patch_size)
-        # Saliency map only has a single channel
-        shape[2] = 1
-        aug = patch_grid(train_transform, shape=shape)
+        # Saliency maps have varying channel sizes
+        shape[2] = channels
+        aug = patch_grid(train_transform, shape=shape, convert_to_pil=channels == 1)
     else:
         aug = train_transform
 
@@ -208,13 +220,18 @@ def get_train_saliency_transform(args):
     norm_size = torchvision.transforms.Resize((args.img_size, args.img_size))
 
     frame_transform = get_salient_frame_transform(args.frame_transforms, args.img_size)
-    frame_aug = get_salient_frame_aug(args.frame_aug, args.patch_size)
+    
+    channels = 1
+    if args.saliency_variant == 'flow':
+        channels = 2
+    
+    frame_aug = get_salient_frame_aug(args.frame_aug, args.patch_size, channels=channels)
     frame_aug = [frame_aug] if args.frame_aug != '' else []
     
     transform = frame_transform + frame_aug
 
     train_transform = MapTransform(
-            torchvision.transforms.Compose(transform)
+            torchvision.transforms.Compose(transform), pil_convert=channels == 1
         )
 
     plain = torchvision.transforms.Compose([
