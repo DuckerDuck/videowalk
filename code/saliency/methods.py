@@ -41,7 +41,6 @@ def harris_from_frame(frame: torch.Tensor) -> torch.Tensor:
     return torch.from_numpy(corners)
 
 def hog_from_frame(frame: torch.Tensor) -> torch.Tensor:
-    # frame = rgb2gray(frame.numpy())
     frame = np.float32(frame.numpy())
     orientations = 8
     pixels_per_cell = 6
@@ -81,7 +80,7 @@ def optical_flow_from_frames(frame_a: torch.Tensor, frame_b: torch.Tensor) -> to
     frame_a = rgb2gray(frame_a.numpy())
     frame_b = rgb2gray(frame_b.numpy())
     
-    flow = cv2.calcOpticalFlowFarneback(frame_a, frame_a, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+    flow = cv2.calcOpticalFlowFarneback(frame_a * 255, frame_b * 255, None, 0.5, 3, 15, 3, 5, 1.2, 0)
     u = flow[:, :, 0]
     v = flow[:, :, 1]
     
@@ -92,6 +91,23 @@ def optical_flow_from_frames(frame_a: torch.Tensor, frame_b: torch.Tensor) -> to
     mag = np.sqrt(u ** 2 + v ** 2)
     norm = (mag - np.min(mag)) / np.max(mag)
     return norm
+
+def magnitude_of_optical_flow_from_frames(frame_a: torch.Tensor, frame_b: torch.Tensor) -> torch.Tensor: 
+    frame_a = rgb2gray(frame_a.numpy())
+    frame_b = rgb2gray(frame_b.numpy())
+    
+    flow = cv2.calcOpticalFlowFarneback(frame_a * 255, frame_b * 255, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+    u = flow[:, :, 0]
+    v = flow[:, :, 1]
+    
+    # Remove camera motion
+    v = v - np.mean(v)
+    u = u - np.mean(u)
+
+    mag = np.sqrt(u ** 2 + v ** 2)
+    norm = (mag - np.min(mag)) / np.max(mag)
+    return torch.from_numpy(norm * 255)
+
 
 def _method_from_video(video: torch.Tensor, method, target: Optional[Path] = None) -> torch.Tensor:
     frames, height, width, channels = video.shape
@@ -120,3 +136,17 @@ def harris_from_video(video: torch.Tensor, target: Optional[Path] = None) -> tor
 
 def hog_from_video(video: torch.Tensor, target: Optional[Path] = None) -> torch.Tensor:
     return _method_from_video(video, hog_from_frame, target)
+
+def magnitude_of_optical_flow_from_video(video: torch.Tensor, target: Optional[Path] = None) -> torch.Tensor:
+    frames, height, width, channels = video.shape
+
+    flows = []
+
+    for f in range(frames - 1):
+        frame_a = video[f, :, :, :]
+        frame_b = video[f + 1, :, :, :]
+        flow = magnitude_of_optical_flow_from_frames(frame_a, frame_b)
+
+        flows.append(flow)
+
+    return torch.stack(flows)

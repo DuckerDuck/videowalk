@@ -19,7 +19,8 @@ method_index = {
     'gbvs': (gbvs_from_video, False),
     'mbs': (mbs_from_folder, True),
     'itti': (itti_from_video, False),
-    'hog': (hog_from_video, False)
+    'hog': (hog_from_video, False),
+    'magflow': (magnitude_of_optical_flow_from_video, False)
 }
 
 class VideoDataset(Dataset):
@@ -71,16 +72,22 @@ class VideoDataset(Dataset):
 
         with open(str(path), 'w') as f:
             img = Image.fromarray(frame)
-            img.save(f, format='jpeg', quality=40)
+            img.save(f, format='jpeg', quality=90)
 
 
     def to_saliency(self, method: Callable, video_path: Path):
+        output_path, exists = self.saliency_destination(video_path)
+
+        if exists:
+            print('Video already generated, skipping', video_path.name)
+            return
+
         # Get video info
         probe = ffmpeg.probe(str(video_path))
         video_stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
         width = int(video_stream['width'])
         height = int(video_stream['height'])
-        
+
         # Read video data
         out, _ = (
             ffmpeg
@@ -92,12 +99,6 @@ class VideoDataset(Dataset):
             .reshape([-1, height, width, 3])
         
         saliency = method(torch.from_numpy(video), None)
-
-        output_path, exists = self.saliency_destination(video_path)
-
-        if exists:
-            print('Video already generated, skipping', video.name)
-            return
 
         for i, frame in enumerate(saliency):
             frame_path = output_path / f'{i}.jpg'
