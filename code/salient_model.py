@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import math
 import numpy as np
 import utils
 
@@ -54,6 +54,48 @@ class SCRW(nn.Module):
     def zeroout_diag(self, A, zero=0):
         mask = (torch.eye(A.shape[-1]).unsqueeze(0).repeat(A.shape[0], 1, 1).bool() < 1).float().cuda()
         return A * mask
+
+    
+    def affinity_optical_flow(self, flow):
+        """
+        Affinities based on optical flow.
+        
+        Optical flow here describes the average optical flow of each node.
+        
+        The affinity is based on the distance between two points:
+        The first point is the patch center of frame t transformed 
+        using optical flow, the second point is the patch center of 
+        frame t+1.
+        """
+        B, C, T, N = flow.shape
+        
+        # Re-order so that C and T dimension are last: (B, N, C, T)
+        flow = flow.permute(0, 3, 1, 2)
+
+        flow = flow.contiguous()
+
+        # Scale UV to be in range [-1, 1]
+        # We have to make sure to only normalize in the node dimension
+        min_flow = flow.view(-1, T * C).min(axis=0)[0]
+        min_flow = min_flow.view(B, C, T)
+
+        max_flow = flow.view(-1, T * C).max(axis=0)[0]
+        max_flow = max_flow.view(B, C, T)
+                
+        norm_flow = 2 * ( (flow - min_flow) / (max_flow - min_flow) ) - 1
+        
+        # Put back into original order
+        norm_flow = norm_flow.permute(0, 2, 3, 1)
+
+        # Arrange nodes into grid
+        size = int(math.sqrt(N))
+        norm_flow = norm_flow.view(B, C, T, size, size)
+
+        indices = torch.round(norm_flow)
+        affinity = torch.zeros(B, T, N, N)
+
+        return affinity
+
 
     def affinity(self, x1, x2):
         in_t_dim = x1.ndim
@@ -113,7 +155,8 @@ class SCRW(nn.Module):
             elif self.variant == 'multiply':
                 A = A * (saliency_A + self.salient_edgedrop_rate)
             elif self.variant == 'flow':
-                raise NotImplementedError
+                pass
+                # raise NotImplementedError
 
         if do_sinkhorn:
             return utils.sinkhorn_knopp((A/self.temperature).exp(), 
@@ -192,7 +235,10 @@ class SCRW(nn.Module):
         #################################################################
         walks = dict()
         As = self.affinity(q[:, :, :-1], q[:, :, 1:])
-        saliency_A = self.affinity(saliency_q[:, :, :-1], saliency_q[:, :, 1:])
+        if self.variant == 'flow':
+            saliency_A = self.affinity_optical_flow(saliency_q)
+        else:
+            saliency_A = self.affinity(saliency_q[:, :, :-1], saliency_q[:, :, 1:])
 
         A12s = [self.stoch_mat(As[:, t], do_dropout=True, saliency_A=saliency_A[:, t]) for t in range(T-1)]
 
@@ -238,7 +284,7 @@ class SCRW(nn.Module):
         #################################################################
         # Visualizations
         #################################################################
-        if (self.vis is not None) and (np.random.random() < 0.02): # and False:
+        if (self.vis is not None):# and (np.random.random() < 0.02): # and False:
             with torch.no_grad():
                 self.visualize_frame_pair(x, q, mm, 'reg')
                 #utils.visualize.vis_affinity(x, A12s, vis=self.vis.vis, title='Affinity', caption='Affinity', vis_win='Regular affinity')

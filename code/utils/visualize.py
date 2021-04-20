@@ -281,8 +281,9 @@ def vis_flow(video: torch.Tensor, flow: torch.Tensor, frame_t=0, vis=None,
             x_c = (x * H) + 0.5 * H
             y_c = (y * H) + 0.5 * H
 
-            mean_uv = torch.mean(flow[(x * nrow) + y, ...], dim=[1, 2]) * 1000
-            plt.arrow(x_c, y_c, mean_uv[0], mean_uv[1], color='red', shape='full')
+            mean_uv = torch.mean(flow[(x * nrow) + y, ...], dim=[1, 2])
+            mean_uv = (mean_uv / torch.norm(mean_uv)) * (W / 2)
+            plt.arrow(x_c, y_c, mean_uv[0], mean_uv[1], color='red')
 
     plt.tight_layout()
 
