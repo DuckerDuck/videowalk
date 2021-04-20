@@ -70,7 +70,7 @@ def _method_from_video(video: torch.Tensor, method, target: Optional[Path] = Non
         if target is not None:
             save_image(salience, target / f'{f}.png', normalize=True)
 
-        saliencies.append(salience.byte())
+        saliencies.append(salience)
 
     return torch.stack(saliencies)
 

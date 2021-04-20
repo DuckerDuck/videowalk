@@ -17,7 +17,8 @@ from saliency.methods import *
 method_index = {
     'harris': (harris_from_video, False),
     'gbvs': (gbvs_from_video, False),
-    'mbs': (mbs_from_folder, True)
+    'mbs': (mbs_from_folder, True),
+    'itti': (itti_from_video, False)
 }
 
 class VideoDataset(Dataset):
@@ -60,6 +61,10 @@ class VideoDataset(Dataset):
     def save_frame(self, frame: torch.Tensor, path: Path):
         if torch.max(frame) < 2:
             frame *= 255
+
+        # Check for overflows before conversion
+        frame[frame > 255] = 255
+        frame[frame < 0] = 0
 
         frame = frame.numpy().astype(np.uint8)
 
