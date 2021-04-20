@@ -70,7 +70,7 @@ class VideoDataset(Dataset):
 
         with open(str(path), 'w') as f:
             img = Image.fromarray(frame)
-            img.save(f, format='jpeg')
+            img.save(f, format='jpeg', quality=40)
 
 
     def to_saliency(self, method: Callable, video_path: Path):
