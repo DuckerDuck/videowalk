@@ -18,7 +18,8 @@ method_index = {
     'harris': (harris_from_video, False),
     'gbvs': (gbvs_from_video, False),
     'mbs': (mbs_from_folder, True),
-    'itti': (itti_from_video, False)
+    'itti': (itti_from_video, False),
+    'hog': (hog_from_video, False)
 }
 
 class VideoDataset(Dataset):
