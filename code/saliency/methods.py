@@ -98,7 +98,7 @@ def _method_from_video(video: torch.Tensor, method, target: Optional[Path] = Non
 
     saliencies = []
 
-    for f in range(3):
+    for f in range(frames):
         frame = video[f, :, :, :]
         salience = method(frame)
 
