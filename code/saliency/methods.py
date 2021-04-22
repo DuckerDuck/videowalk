@@ -5,7 +5,6 @@ from skimage.feature import hog
 from torchvision.utils import save_image
 from pathlib import Path
 from typing import Optional
-import torch
 import numpy as np
 import cv2
 import docker
@@ -24,24 +23,22 @@ def mbs_from_folder(input_path: Path, output_path: Path):
     return result
 
 
-def gbvs_from_frame(frame: torch.Tensor) -> torch.Tensor:
-    frame = frame.numpy()
-    salience = torch.from_numpy(compute_gbvs(frame))
+def gbvs_from_frame(frame: np.array) -> np.array:
+    salience = compute_gbvs(frame)
     return salience
 
-def itti_from_frame(frame: torch.Tensor) -> torch.Tensor:
-    frame = frame.numpy()
-    salience = torch.from_numpy(compute_itti(frame))
+def itti_from_frame(frame: np.array) -> np.array:
+    salience = compute_itti(frame)
     return salience
 
-def harris_from_frame(frame: torch.Tensor) -> torch.Tensor:
-    frame = rgb2gray(frame.numpy())
+def harris_from_frame(frame: np.array) -> np.array:
+    frame = rgb2gray()
     frame = np.float32(frame)
     corners = corners = cv2.cornerHarris(frame, 3, 7, 0.02)
-    return torch.from_numpy(corners)
+    return corners
 
-def hog_from_frame(frame: torch.Tensor) -> torch.Tensor:
-    frame = np.float32(frame.numpy())
+def hog_from_frame(frame: np.array) -> np.array:
+    frame = np.float32(frame)
     orientations = 8
     pixels_per_cell = 6
     cells_per_block = 1
@@ -74,11 +71,11 @@ def hog_from_frame(frame: torch.Tensor) -> torch.Tensor:
     sign_image = (sign_image - np.min(sign_image)) / np.max(sign_image)
     sign_image = 1 - sign_image
     
-    return torch.from_numpy(sign_image)
+    return sign_image
 
-def optical_flow_from_frames(frame_a: torch.Tensor, frame_b: torch.Tensor) -> torch.Tensor:
-    frame_a = rgb2gray(frame_a.numpy())
-    frame_b = rgb2gray(frame_b.numpy())
+def optical_flow_from_frames(frame_a: np.array, frame_b: np.array) -> np.array:
+    frame_a = rgb2gray(frame_a)
+    frame_b = rgb2gray(frame_b)
     
     flow = cv2.calcOpticalFlowFarneback(frame_a * 255, frame_b * 255, None, 0.5, 3, 15, 3, 5, 1.2, 0)
     u = flow[:, :, 0]
@@ -92,9 +89,9 @@ def optical_flow_from_frames(frame_a: torch.Tensor, frame_b: torch.Tensor) -> to
     norm = (mag - np.min(mag)) / np.max(mag)
     return norm
 
-def magnitude_of_optical_flow_from_frames(frame_a: torch.Tensor, frame_b: torch.Tensor) -> torch.Tensor: 
-    frame_a = rgb2gray(frame_a.numpy())
-    frame_b = rgb2gray(frame_b.numpy())
+def magnitude_of_optical_flow_from_frames(frame_a: np.array, frame_b: np.array) -> np.array: 
+    frame_a = rgb2gray(frame_a)
+    frame_b = rgb2gray(frame_b)
     
     flow = cv2.calcOpticalFlowFarneback(frame_a * 255, frame_b * 255, None, 0.5, 3, 15, 3, 5, 1.2, 0)
     u = flow[:, :, 0]
@@ -106,10 +103,10 @@ def magnitude_of_optical_flow_from_frames(frame_a: torch.Tensor, frame_b: torch.
 
     mag = np.sqrt(u ** 2 + v ** 2)
     norm = (mag - np.min(mag)) / np.max(mag)
-    return torch.from_numpy(norm * 255)
+    return norm * 255
 
 
-def _method_from_video(video: torch.Tensor, method, target: Optional[Path] = None) -> torch.Tensor:
+def _method_from_video(video: np.array, method, target: Optional[Path] = None) -> np.array:
     frames, height, width, channels = video.shape
 
     saliencies = []
@@ -123,21 +120,21 @@ def _method_from_video(video: torch.Tensor, method, target: Optional[Path] = Non
 
         saliencies.append(salience)
 
-    return torch.stack(saliencies)
+    return np.stack(saliencies)
 
-def gbvs_from_video(video: torch.Tensor, target: Optional[Path] = None) -> torch.Tensor:
+def gbvs_from_video(video: np.array, target: Optional[Path] = None) -> np.array:
     return _method_from_video(video, gbvs_from_frame, target)
 
-def itti_from_video(video: torch.Tensor, target: Optional[Path] = None) -> torch.Tensor:
+def itti_from_video(video: np.array, target: Optional[Path] = None) -> np.array:
     return _method_from_video(video, itti_from_frame, target)
 
-def harris_from_video(video: torch.Tensor, target: Optional[Path] = None) -> torch.Tensor:
+def harris_from_video(video: np.array, target: Optional[Path] = None) -> np.array:
     return _method_from_video(video, harris_from_frame, target)
 
-def hog_from_video(video: torch.Tensor, target: Optional[Path] = None) -> torch.Tensor:
+def hog_from_video(video: np.array, target: Optional[Path] = None) -> np.array:
     return _method_from_video(video, hog_from_frame, target)
 
-def magnitude_of_optical_flow_from_video(video: torch.Tensor, target: Optional[Path] = None) -> torch.Tensor:
+def magnitude_of_optical_flow_from_video(video: np.array, target: Optional[Path] = None) ->np.array:
     frames, height, width, channels = video.shape
 
     flows = []
@@ -149,4 +146,4 @@ def magnitude_of_optical_flow_from_video(video: torch.Tensor, target: Optional[P
 
         flows.append(flow)
 
-    return torch.stack(flows)
+    return np.stack(flows)

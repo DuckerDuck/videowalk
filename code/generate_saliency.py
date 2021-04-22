@@ -26,12 +26,13 @@ method_index = {
 class VideoDataset(Dataset):
     """Dataset for looping through videos in folder and generating saliency maps"""
 
-    def __init__(self, dataset: Path, saliency_path: Path, method: str, extension='mp4'):
+    def __init__(self, dataset: Path, saliency_path: Path, method: str, extension='mp4', rescale=1):
         self.root = dataset
         self.extension = extension
         self.videos = self.get_video_list()
         self.saliency_path = saliency_path
         self.method = method
+        self.rescale = rescale
 
     def get_video_list(self) -> List[Path]:
         return list(self.root.glob(f'**/*.{self.extension}'))
@@ -60,19 +61,26 @@ class VideoDataset(Dataset):
         return output_path, False
 
 
-    def save_frame(self, frame: torch.Tensor, path: Path):
-        if torch.max(frame) < 2:
+    def save_frame(self, frame: np.array, path: Path):
+        if np.max(frame) < 2:
             frame *= 255
 
         # Check for overflows before conversion
         frame[frame > 255] = 255
         frame[frame < 0] = 0
 
-        frame = frame.numpy().astype(np.uint8)
+        frame = frame.astype(np.uint8)
 
         with open(str(path), 'w') as f:
             img = Image.fromarray(frame)
-            img.save(f, format='jpeg', quality=90)
+            img.save(f, format='jpeg', quality=50)
+
+    def scale_video(self, video: np.array, height: int, width: int) -> np.array:
+        scaled_frames = []
+        for frame in video:
+            scaled_frame = cv2.resize(frame, dsize=(height, width), interpolation=cv2.INTER_CUBIC)
+            scaled_frames.append(scaled_frame)
+        return np.stack(scaled_frames, axis=0)
 
 
     def to_saliency(self, method: Callable, video_path: Path):
@@ -98,7 +106,14 @@ class VideoDataset(Dataset):
         video = np.frombuffer(out, np.uint8)\
             .reshape([-1, height, width, 3])
         
-        saliency = method(torch.from_numpy(video), None)
+        if self.rescale != 1:
+            new_h, new_w = int(self.rescale * height), int(self.rescale * width)
+            video = self.scale_video(video, new_h, new_w)
+
+        saliency = method(video, None)
+
+        if self.rescale != 1:
+            saliency = self.scale_video(saliency, height, width)
 
         for i, frame in enumerate(saliency):
             frame_path = output_path / f'{i}.jpg'
@@ -146,7 +161,7 @@ def no_collate(input):
     return input
 
 def generate(args):
-    dataset = VideoDataset(Path(args.data_path), Path(args.saliency_path), args.method)
+    dataset = VideoDataset(Path(args.data_path), Path(args.saliency_path), args.method, rescale=args.rescale)
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=args.batch_size,
         sampler=None, num_workers=args.workers//2,
@@ -178,8 +193,7 @@ if __name__ == '__main__':
     parser.add_argument('--method', default='harris', help='Method to use with saliency generation')
     parser.add_argument('-b', '--batch-size', default=8, type=int)
     parser.add_argument('-rs', '--rescale', default=1, type=float, 
-    help='How much to scale video frames before computing saliency')
-
+        help='Scale video before generating saliency information, can speed up computation')
     parser.add_argument('-j', '--workers', default=16, type=int, metavar='N',
                         help='number of data loading workers (default: 16)')
  
