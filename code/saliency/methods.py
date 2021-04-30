@@ -9,7 +9,6 @@ import numpy as np
 import cv2
 import docker
 
-# method_from_frame should return tensor of shape (height, width) in range 0 - 255
 
 def mbs_from_folder(input_path: Path, output_path: Path):
 
@@ -32,9 +31,10 @@ def itti_from_frame(frame: np.array) -> np.array:
     return salience
 
 def harris_from_frame(frame: np.array) -> np.array:
-    frame = rgb2gray()
+    frame = rgb2gray(frame)
     frame = np.float32(frame)
-    corners = corners = cv2.cornerHarris(frame, 3, 7, 0.02)
+    corners = cv2.cornerHarris(frame, 3, 7, 0.02)
+    corners = corners.astype(np.uint8)
     return corners
 
 def hog_from_frame(frame: np.array) -> np.array:
