@@ -70,7 +70,8 @@ def hog_from_frame(frame: np.array) -> np.array:
 
     sign_image = (sign_image - np.min(sign_image)) / np.max(sign_image)
     sign_image = 1 - sign_image
-    
+    sign_image[sign_image < np.mean(sign_image)] /= 2
+
     return sign_image
 
 def optical_flow_from_frames(frame_a: np.array, frame_b: np.array) -> np.array:
