@@ -101,13 +101,13 @@ class SalientKinetics400(Kinetics400):
 
                 # This information is needed for saliency caching
                 clip_location = self.video_clips.get_clip_location(idx)
-                # saliency = self.get_saliency_clip(video, clip_location)
+                saliency = self.get_saliency_clip(video, clip_location)
                 success = True
             except:
                 print('skipped idx', idx)
                 idx = np.random.randint(self.__len__())
         
-        saliency = self.get_saliency_clip(video, clip_location)
+        # saliency = self.get_saliency_clip(video, clip_location)
         label = self.samples[video_idx][1]
 
         # The random state is kept constant for the two transforms, this
