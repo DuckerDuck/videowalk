@@ -82,6 +82,12 @@ class VideoDataset(Dataset):
             scaled_frames.append(scaled_frame)
         return np.stack(scaled_frames, axis=0)
 
+    def get_video_shape(self, video_path: Path) -> Tuple:
+        probe = ffmpeg.probe(str(video_path))
+        video_stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
+        width = int(video_stream['width'])
+        height = int(video_stream['height'])
+        return height, width
 
     def to_saliency(self, method: Callable, video_path: Path):
         output_path, exists = self.saliency_destination(video_path)
@@ -91,10 +97,7 @@ class VideoDataset(Dataset):
             return
 
         # Get video info
-        probe = ffmpeg.probe(str(video_path))
-        video_stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
-        width = int(video_stream['width'])
-        height = int(video_stream['height'])
+        height, width = self.get_video_shape(video_path)
 
         # Read video data
         out, _ = (
@@ -139,16 +142,35 @@ class VideoDataset(Dataset):
         input_path = tmp_dir / folder_name
         input_path.mkdir()
 
+        height, width = self.get_video_shape(video)
+        new_width = width
+        new_height = height
+
+        if self.rescale != 1:
+            new_width = int(width * self.rescale)
+            new_height = int(height * self.rescale)
+
         # Convert video file to image sequence
         (
             ffmpeg
             .input(str(video))
+            .filter('scale', new_width, new_height)
             .output(str(input_path / '%01d.jpg'))
             .run(quiet=True)
         )
         print('Converted video to image sequence', video.name)
         
         stdout = method(input_path, output_path)
+
+        # Scale output back to original resolution
+        if self.rescale != 1:
+            (
+                ffmpeg
+                .input(str(output_path / '%01d.jpg'))
+                .filter('scale', width, height)
+                .output(str(output_path / '%01d.jpg'))
+                .run(quiet=True)
+            )
         
         print('Converted image sequence to saliency', video.name)
 
