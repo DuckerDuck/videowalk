@@ -20,7 +20,8 @@ method_index = {
     'mbs': (mbs_from_folder, True),
     'itti': (itti_from_video, False),
     'hog': (hog_from_video, False),
-    'magflow': (magnitude_of_optical_flow_from_video, False)
+    'magflow': (magnitude_of_optical_flow_from_video, False),
+    'eqcut': (eqcut_from_folder, True)
 }
 
 class VideoDataset(Dataset):
@@ -220,6 +221,7 @@ if __name__ == '__main__':
                         help='number of data loading workers (default: 16)')
  
     args = parser.parse_args()
+    print(args)
 
     if args.method not in method_index.keys():
         print(f'Unknown method: {args.method}, use one of: {method_index.keys()}')

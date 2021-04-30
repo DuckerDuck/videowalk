@@ -8,6 +8,8 @@ from typing import Optional
 import numpy as np
 import cv2
 import docker
+import subprocess
+
 
 
 def mbs_from_folder(input_path: Path, output_path: Path):
@@ -20,6 +22,26 @@ def mbs_from_folder(input_path: Path, output_path: Path):
     }
     result = client.containers.run('mbs:latest', 'octave process_folder.m', volumes=volumes)
     return result
+
+def eqcut_from_folder(input_path: Path, output_path: Path):
+
+    eq_path = Path('/home/jan/ai/oldschool-cv-dockerfiles/EQCUT/EQCUT-Matlab-Code-Edited/')
+
+    # Setup symlinks
+    eq_in = (eq_path / 'input')
+    eq_out = (eq_path / 'output')
+    if eq_in.exists():
+        eq_in.unlink()
+    if eq_out.exists():
+        eq_out.unlink()
+
+    eq_in.symlink_to(input_path.resolve(), True)
+    eq_out.symlink_to(output_path.resolve(), True)
+
+    rc = subprocess.run(eq_path / 'run_matlab.sh', cwd=eq_path, capture_output=False)
+
+    eq_in.unlink()
+    eq_out.unlink()
 
 
 def gbvs_from_frame(frame: np.array) -> np.array:
