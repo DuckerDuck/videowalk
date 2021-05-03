@@ -25,7 +25,7 @@ class SalientKinetics400(Kinetics400):
     """
 
     def __init__(self, root, salient_root, frames_per_clip, step_between_clips=1, frame_rate=None,
-                 extensions=('mp4',), transform=None, salient_transform=None, rescale=1, 
+                 extensions=('mp4',), transform=None, salient_transform=None, 
                  cached=None, _precomputed_metadata=None, frame_offset=0):
         super(SalientKinetics400, self).__init__(root, frames_per_clip, 
                                                 step_between_clips=step_between_clips,
@@ -34,13 +34,12 @@ class SalientKinetics400(Kinetics400):
                                                 _precomputed_metadata=_precomputed_metadata)
 
         self.salient_transform = salient_transform
-        self.rescale = rescale
         self.salient_root = Path(salient_root)
         # Frame offset can be used if a saliency method uses 1-indexing
         self.frame_offset = frame_offset
+        
         if not self.salient_root.is_dir():
-            # No salient cache available, create new one
-            self.salient_root.mkdir()
+            print(f'Could not find saliency data at {self.salient_root}')
 
     def clip_idx_to_frame(self, clip_location: Tuple[int, int]) -> List:
         video_idx, clip_idx = clip_location
