@@ -1,3 +1,4 @@
+from shutil import move
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -68,33 +69,22 @@ class SCRW(nn.Module):
         frame t+1.
         """
         B, C, T, N = flow.shape
+    
+        patch_centers = torch.cartesian_prod(torch.arange(size), torch.arange(size)).float()
+        patch_centers = torch.stack(B * [patch_centers])
+        patch_centers = patch_centers.to(flow.device)
         
-        # Re-order so that C and T dimension are last: (B, N, C, T)
-        flow = flow.permute(0, 3, 1, 2)
+        affinities = []
+        for t in range(T):
+            moved_centers = patch_centers + flow[:, :, t].permute(0, 2, 1)
 
-        flow = flow.contiguous()
+            distance = torch.cdist(patch_centers, moved_centers)
+            distance -= distance.min(1, keepdim=True)[0]
+            distance /= distance.max(1, keepdim=True)[0]
+            distance = 1 - distance
+            affinities.append(distance)
 
-        # Scale UV to be in range [-1, 1]
-        # We have to make sure to only normalize in the node dimension
-        min_flow = flow.view(-1, T * C).min(axis=0)[0]
-        min_flow = min_flow.view(B, C, T)
-
-        max_flow = flow.view(-1, T * C).max(axis=0)[0]
-        max_flow = max_flow.view(B, C, T)
-                
-        norm_flow = 2 * ( (flow - min_flow) / (max_flow - min_flow) ) - 1
-        
-        # Put back into original order
-        norm_flow = norm_flow.permute(0, 2, 3, 1)
-
-        # Arrange nodes into grid
-        size = int(math.sqrt(N))
-        norm_flow = norm_flow.view(B, C, T, size, size)
-
-        indices = torch.round(norm_flow)
-        affinity = torch.zeros(B, T, N, N)
-
-        return affinity
+        return torch.stack(affinities, dim=1)
 
 
     def affinity(self, x1, x2):
@@ -287,10 +277,13 @@ class SCRW(nn.Module):
         if (self.vis is not None):# and (np.random.random() < 0.02): # and False:
             with torch.no_grad():
                 self.visualize_frame_pair(x, q, mm, 'reg')
-                #utils.visualize.vis_affinity(x, A12s, vis=self.vis.vis, title='Affinity', caption='Affinity', vis_win='Regular affinity')
-                #utils.visualize.vis_affinity(s, [saliency_A[:, t] for t in range(T-1)], vis=self.vis.vis, title='Saliency Affinity', caption='Saliency Affinity')
+                utils.visualize.vis_affinity(x, A12s, vis=self.vis.vis, title='Affinity', caption='Affinity', vis_win='Regular affinity')
+                bg_to_affinity = s
                 if self.variant == 'flow':
+                    bg_to_affinity = x
                     utils.visualize.vis_flow(x, s, title='flow', vis_win='optical flow', vis=self.vis.vis)
+
+                utils.visualize.vis_affinity(bg_to_affinity, [saliency_A[:, t] for t in range(T-1)], vis=self.vis.vis, title='Saliency Affinity', caption='Saliency Affinity')
                 utils.visualize.vis_patch(s, self.vis.vis, 'saliency', title='Saliency', caption='Patches Saliency Map')
                 utils.visualize.vis_patch(x, self.vis.vis, 'video', title='Video', caption='Patches Video')
                 if _N > 1: # and False:
