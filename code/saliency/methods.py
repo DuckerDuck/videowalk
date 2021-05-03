@@ -25,6 +25,18 @@ def mbs_from_folder(input_path: Path, output_path: Path):
 
 def eqcut_from_folder(input_path: Path, output_path: Path):
 
+    # Setup docker connection
+    client = docker.from_env()
+    volumes = {
+        str(input_path.resolve()): {'bind': '/EQCUT-Matlab-Code/images', 'mode': 'ro'},
+        str(output_path.resolve()): {'bind': '/EQCUT-Matlab-Code/output', 'mode': 'rw'}
+    }
+    result = client.containers.run('eqcut:latest', 'octave main.m', volumes=volumes, working_dir='/EQCUT-Matlab-Code')
+    return result
+
+def eqcut_from_folder_matlab(input_path: Path, output_path: Path):
+    """ Matlab version of the eqcut algorithm, this version is faster
+    but does not support concurrency like the docker version"""
     eq_path = Path('/home/jan/ai/oldschool-cv-dockerfiles/EQCUT/EQCUT-Matlab-Code-Edited/')
 
     # Setup symlinks

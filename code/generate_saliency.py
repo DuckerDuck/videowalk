@@ -141,7 +141,8 @@ class VideoDataset(Dataset):
         # Create temporary folder to store image sequence
         folder_name = hashlib.sha224(str(video).encode()).hexdigest()
         input_path = tmp_dir / folder_name
-        input_path.mkdir()
+        if not input_path.exists():
+            input_path.mkdir()
 
         height, width = self.get_video_shape(video)
         new_width = width
