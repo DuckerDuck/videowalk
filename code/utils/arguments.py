@@ -173,6 +173,9 @@ def train_args():
         dt = datetime.datetime.today()
         args.name = "%s-%s-%s_%s" % (str(dt.month), str(dt.day), args.name, name)
 
+    if args.saliency_path.lower() == 'none':
+        args.saliency_path = None
+
     # Set seed
     random.seed(args.manualSeed)
     torch.manual_seed(args.manualSeed)

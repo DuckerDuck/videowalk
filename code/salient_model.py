@@ -69,7 +69,8 @@ class SCRW(nn.Module):
         frame t+1.
         """
         B, C, T, N = flow.shape
-    
+
+        size = int(math.sqrt(N))
         patch_centers = torch.cartesian_prod(torch.arange(size), torch.arange(size)).float()
         patch_centers = torch.stack(B * [patch_centers])
         patch_centers = patch_centers.to(flow.device)
