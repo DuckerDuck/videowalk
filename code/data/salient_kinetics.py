@@ -4,7 +4,7 @@ from torch import Tensor
 import torch
 from .kinetics import Kinetics400
 from pathlib import Path
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 
 import numpy as np
 
@@ -12,6 +12,8 @@ class SalientKinetics400(Kinetics400):
     """
     Args:
         root (string): Root directory of the Kinetics-400 Dataset.
+        salient_root (string, optional): Root directory of the Saliency Dataset, 
+            if None generate a simple saliency map
         frames_per_clip (int): number of frames in a clip
         step_between_clips (int): number of frames between each clip
         transform (callable, optional): A function/transform that  takes in a TxHxWxC video
@@ -19,12 +21,13 @@ class SalientKinetics400(Kinetics400):
 
     Returns:
         video (Tensor[T, H, W, C]): the `T` video frames
-        audio(Tensor[K, L]): the audio frames, where `K` is the number of channels
+        audio (Tensor[K, L]): the audio frames, where `K` is the number of channels
             and `L` is the number of points
+        saliency (Tensor[T, H, W, C]): Saliency information of video
         label (int): class of the video clip
     """
 
-    def __init__(self, root, salient_root, frames_per_clip, step_between_clips=1, frame_rate=None,
+    def __init__(self, root, salient_root: Optional[str], frames_per_clip, step_between_clips=1, frame_rate=None,
                  extensions=('mp4',), transform=None, salient_transform=None, 
                  cached=None, _precomputed_metadata=None, frame_offset=0):
         super(SalientKinetics400, self).__init__(root, frames_per_clip, 
@@ -34,12 +37,15 @@ class SalientKinetics400(Kinetics400):
                                                 _precomputed_metadata=_precomputed_metadata)
 
         self.salient_transform = salient_transform
-        self.salient_root = Path(salient_root)
         # Frame offset can be used if a saliency method uses 1-indexing
         self.frame_offset = frame_offset
         
-        if not self.salient_root.is_dir():
-            print(f'Could not find saliency data at {self.salient_root}')
+        if salient_root is None:
+            self.salient_root = None
+        else:
+            self.salient_root = Path(salient_root)
+            if not self.salient_root.is_dir():
+                raise FileNotFoundError(f'Could not find saliency data at {self.salient_root}')
 
     def clip_idx_to_frame(self, clip_location: Tuple[int, int]) -> List:
         video_idx, clip_idx = clip_location
@@ -62,8 +68,23 @@ class SalientKinetics400(Kinetics400):
             img *= 255
         return img.squeeze()
 
+    def generate_saliency_clip(self, clip: Tensor) -> Tensor:
+        """ Used to generate simple saliency maps """
+        T, W, H, C = clip.shape
+        frame = torch.cartesian_prod(torch.arange(W), torch.arange(H))
+        frame = frame.reshape(W, H, 2).float()
+        center = torch.tensor([W/2, H/2]).unsqueeze(0)
+        distance = torch.cdist(frame, center).squeeze()
 
-    def get_saliency_clip(self, clip: Tensor, clip_location: Tuple[int, int]) -> Tensor:
+        distance -= distance.min()
+        distance /= distance.max()
+        distance = (1 - distance) * 255
+        distance = distance.byte()
+
+        return torch.stack(T * [distance])
+
+
+    def get_saliency_clip(self, clip_location: Tuple[int, int]) -> Tensor:
         """
         Get (precomputed) saliency clip
         """
@@ -100,7 +121,11 @@ class SalientKinetics400(Kinetics400):
 
                 # This information is needed for saliency caching
                 clip_location = self.video_clips.get_clip_location(idx)
-                saliency = self.get_saliency_clip(video, clip_location)
+                if self.salient_root is None:
+                    saliency = self.generate_saliency_clip(video)
+                else:
+                    saliency = self.get_saliency_clip(clip_location)
+                
                 success = True
             except:
                 print('skipped idx', idx)
