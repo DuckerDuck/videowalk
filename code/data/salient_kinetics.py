@@ -4,6 +4,8 @@ from torch import Tensor
 import torch
 from .kinetics import Kinetics400
 from pathlib import Path
+from typing import Tuple, List
+from saliency.flow.optflow import flow_read
 from typing import Tuple, List, Optional
 
 import numpy as np
@@ -12,7 +14,7 @@ class SalientKinetics400(Kinetics400):
     """
     Args:
         root (string): Root directory of the Kinetics-400 Dataset.
-        salient_root (string, optional): Root directory of the Saliency Dataset, 
+        prior_root (string, optional): Root directory of the Prior Dataset, 
             if None generate a simple saliency map
         frames_per_clip (int): number of frames in a clip
         step_between_clips (int): number of frames between each clip
@@ -27,9 +29,9 @@ class SalientKinetics400(Kinetics400):
         label (int): class of the video clip
     """
 
-    def __init__(self, root, salient_root: Optional[str], frames_per_clip, step_between_clips=1, frame_rate=None,
+    def __init__(self, root, prior_root: Optional[str], frames_per_clip, step_between_clips=1, frame_rate=None,
                  extensions=('mp4',), transform=None, salient_transform=None, 
-                 cached=None, _precomputed_metadata=None, frame_offset=0):
+                 cached=None, _precomputed_metadata=None, frame_offset=0, saliency_channels=1):
         super(SalientKinetics400, self).__init__(root, frames_per_clip, 
                                                 step_between_clips=step_between_clips,
                                                 frame_rate=frame_rate, extensions=extensions, 
@@ -39,13 +41,16 @@ class SalientKinetics400(Kinetics400):
         self.salient_transform = salient_transform
         # Frame offset can be used if a saliency method uses 1-indexing
         self.frame_offset = frame_offset
+
+        # Saliency maps are grayscale (1 channel) and optical flow contains Fx and Fy  (2 channels)
+        self.saliency_channels = saliency_channels
         
-        if salient_root is None:
-            self.salient_root = None
+        if prior_root is None:
+            self.prior_root = None
         else:
-            self.salient_root = Path(salient_root)
-            if not self.salient_root.is_dir():
-                raise FileNotFoundError(f'Could not find saliency data at {self.salient_root}')
+            self.prior_root = Path(prior_root)
+            if not self.prior_root.is_dir():
+                raise FileNotFoundError(f'Could not find saliency data at {self.prior_root}')
 
     def clip_idx_to_frame(self, clip_location: Tuple[int, int]) -> List:
         video_idx, clip_idx = clip_location
@@ -58,13 +63,26 @@ class SalientKinetics400(Kinetics400):
         frames = [to_frame[pts.item()] for pts in clip_pts]
         return frames
 
+    def load_optical_flow_frame(self, path: Path) -> Tensor:
+        flow = flow_read(str(path))
+        return to_tensor(flow)
+
     def load_frame(self, path: Path) -> Tensor:
         with open(str(path), 'rb') as f:
             img = Image.open(f)
-            img = img.convert('L')
+            if self.saliency_channels == 1:
+                img = img.convert('L')
+            elif self.saliency_channels == 2:
+                img = img.convert('RGB')
+
         img = to_tensor(img)
-        
-        if (torch.max(img) < 2):
+
+        if self.saliency_channels == 2:
+            # Discard B channel, img shape: (h, w, 2)
+            img = img[:2, :, :].permute(1, 2, 0)
+
+        # TODO: check if this code can be removed
+        if torch.max(img) < 2 and self.saliency_channels != 2:
             img *= 255
         return img.squeeze()
 
@@ -98,18 +116,24 @@ class SalientKinetics400(Kinetics400):
         subfolders = video_path.relative_to(Path(self.root).parent).parent
         
         frames = self.clip_idx_to_frame(clip_location)
-        cached_folder = self.salient_root / subfolders / video_name
+        cached_folder = self.prior_root / subfolders / video_name
         
         saliencies = []
         for frame in frames:
             cached_file = cached_folder / f'{frame + self.frame_offset}.jpg'
+            
+            if self.saliency_channels == 2:
+                cached_file = cached_file.with_suffix('.flo')
 
             if cached_file.is_file():
-                saliency_frame = self.load_frame(cached_file)
+                if self.saliency_channels == 2:
+                    saliency_frame = self.load_optical_flow_frame(cached_file)
+                else:
+                    saliency_frame = self.load_frame(cached_file)
             else:
                 raise Exception(f'Could not load frame {cached_file} from video {video_idx}.')
 
-            saliencies.append(saliency_frame.byte())
+            saliencies.append(saliency_frame)
         return torch.stack(saliencies)
 
 
@@ -121,7 +145,7 @@ class SalientKinetics400(Kinetics400):
 
                 # This information is needed for saliency caching
                 clip_location = self.video_clips.get_clip_location(idx)
-                if self.salient_root is None:
+                if self.prior_root is None:
                     saliency = self.generate_saliency_clip(video)
                 else:
                     saliency = self.get_saliency_clip(clip_location)

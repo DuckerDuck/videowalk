@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 
 from matplotlib import cm
 
+from saliency.flow.optflow import flow_to_img
+
 
 def pca_feats(ff, K=1, solver='auto', whiten=True, img_normalize=True):
     ## expect ff to be   N x C x H x W
@@ -224,6 +226,7 @@ def vis_affinity(video: torch.Tensor, affinity: torch.Tensor, frames=(0, 1), vis
     
     plt.figure()
     plt.imshow(sbs_images.permute(1, 2, 0))
+    plt.axis('off')
     
     for x1 in range(nrow):
         for y1 in range(nrow):
@@ -240,6 +243,47 @@ def vis_affinity(video: torch.Tensor, affinity: torch.Tensor, frames=(0, 1), vis
                     aff = affinity12[(y1 * nrow) + x1, (y2 * nrow) + x2]
                     if aff >= threshold:
                         plt.plot([x1_c, x2_c], [y1_c, y2_c], alpha=0.7)
+
+    plt.tight_layout()
+
+    opts = dict(title=title, caption=caption)
+    if vis is None:
+        plt.savefig(title.replace(' ', '_') + '.png')
+    else:
+        vis.matplot(plt.gcf(), opts=opts, win=vis_win)
+    
+def vis_flow(video: torch.Tensor, flow: torch.Tensor, frame_t=0, vis=None, 
+                 vis_win='default', title='', caption=''):
+    B, N, C, T, H, W = video.shape
+    frame = video[0, :, :, frame_t].cpu()
+    flow = flow[0, :, :, frame_t].cpu()
+    nrow = int(N**0.5)
+
+    image = torchvision.utils.make_grid(frame, nrow=nrow, padding=1, pad_value=1, normalize=True)
+
+    flow_images = []
+    for flow_patch in flow:
+        hsv_flow = flow_to_img(flow_patch.permute(1, 2, 0).numpy())
+        as_tensor = torch.from_numpy(hsv_flow).float().permute(2, 0, 1) / 255
+        flow_images.append(as_tensor)
+    
+    flow_image = torchvision.utils.make_grid(flow_images, nrow=nrow, padding=1, pad_value=1, normalize=True)
+
+    sbs_images = torchvision.utils.make_grid([image, flow_image], nrow=2, padding=0, pad_value=0, normalize=False)
+
+    plt.figure()
+    plt.imshow(sbs_images.permute(1, 2, 0))
+    plt.axis('off')
+    
+    for x in range(nrow):
+        for y in range(nrow):
+            # Center of patches
+            x_c = (x * H) + 0.5 * H
+            y_c = (y * H) + 0.5 * H
+
+            mean_uv = torch.mean(flow[(x * nrow) + y, ...], dim=[1, 2])
+            mean_uv = (mean_uv / torch.norm(mean_uv)) * (W / 2)
+            plt.arrow(x_c, y_c, mean_uv[0], mean_uv[1], color='red')
 
     plt.tight_layout()
 

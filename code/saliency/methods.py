@@ -113,16 +113,8 @@ def optical_flow_from_frames(frame_a: np.array, frame_b: np.array) -> np.array:
     frame_b = rgb2gray(frame_b)
     
     flow = cv2.calcOpticalFlowFarneback(frame_a * 255, frame_b * 255, None, 0.5, 3, 15, 3, 5, 1.2, 0)
-    u = flow[:, :, 0]
-    v = flow[:, :, 1]
     
-    # Remove camera motion
-    v = v - np.mean(v)
-    u = u - np.mean(u)
-
-    mag = np.sqrt(u ** 2 + v ** 2)
-    norm = (mag - np.min(mag)) / np.max(mag)
-    return norm
+    return flow[:, :, :2].squeeze()
 
 def magnitude_of_optical_flow_from_frames(frame_a: np.array, frame_b: np.array) -> np.array: 
     frame_a = rgb2gray(frame_a)
@@ -165,6 +157,20 @@ def itti_from_video(video: np.array, target: Optional[Path] = None) -> np.array:
 
 def harris_from_video(video: np.array, target: Optional[Path] = None) -> np.array:
     return _method_from_video(video, harris_from_frame, target)
+
+def optical_flow_from_video(video: np.array, target: Optional[Path] = None) -> np.array:
+    frames, height, width, channels = video.shape
+
+    flows = []
+    for t in range(frames - 1):
+        
+        frame_a = video[t, :, :, :]
+        frame_b = video[t + 1, :, :, :]
+
+        flow = optical_flow_from_frames(frame_a, frame_b)
+        flows.append(flow)
+    
+    return np.stack(flows)
 
 def hog_from_video(video: np.array, target: Optional[Path] = None) -> np.array:
     return _method_from_video(video, hog_from_frame, target)
