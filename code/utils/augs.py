@@ -222,7 +222,7 @@ def get_train_saliency_transform(args):
     frame_transform = get_salient_frame_transform(args.frame_transforms, args.img_size)
     
     channels = 1
-    if args.saliency_variant == 'flow':
+    if args.prior_dataset == 'flow':
         channels = 2
     
     frame_aug = get_salient_frame_aug(args.frame_aug, args.patch_size, channels=channels)

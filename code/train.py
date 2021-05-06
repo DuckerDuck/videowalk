@@ -3,6 +3,7 @@ import os
 import time
 import sys
 import numpy as np
+from pathlib import Path
 
 import torch
 import torch.utils.data
@@ -91,6 +92,7 @@ def main(args):
     print("Preparing training dataloader")
     traindir = os.path.join(args.data_path, 'train_256' if not args.fast_test else 'val_256')
     valdir = os.path.join(args.data_path, 'val_256')
+    priordir = Path('./saliency_cache_' + args.prior_dataset)
 
     st = time.time()
     if args.cache_dataset:
@@ -98,7 +100,7 @@ def main(args):
         print("CACHE PATH:", cache_path)
 
     transform_salient = None
-    if args.with_saliency:
+    if args.with_guiding:
         salient_transform = utils.augs.get_train_saliency_transform(args)
 
     transform_train = utils.augs.get_train_transforms(args)
@@ -107,10 +109,10 @@ def main(args):
         _transform = transform_train if is_train else transform_test
 
         if 'kinetics' in args.data_path.lower():
-            if args.with_saliency:
+            if args.with_guiding:
                 return SalientKinetics400(
                     traindir if is_train else valdir,
-                    args.saliency_path,
+                    priordir,
                     frames_per_clip=args.clip_len,
                     step_between_clips=1,
                     transform=transform_train,
@@ -118,8 +120,8 @@ def main(args):
                     extensions=('mp4'),
                     frame_rate=args.frame_skip,
                     _precomputed_metadata=cached,
-                    frame_offset=args.saliency_frame_index,
-                    saliency_channels=2 if args.saliency_variant == 'flow' else 1
+                    frame_offset=args.prior_frame_index,
+                    saliency_channels=2 if args.prior_dataset == 'flow' else 1
                 )
             else: 
                 return Kinetics400(
@@ -129,7 +131,6 @@ def main(args):
                     transform=transform_train,
                     extensions=('mp4'),
                     frame_rate=args.frame_skip,
-                    # cached=cached,
                     _precomputed_metadata=cached
                 )
         elif os.path.isdir(args.data_path): # HACK assume image dataset if data path is a directory
@@ -180,7 +181,7 @@ def main(args):
     train_sampler = make_data_sampler(True, dataset, seed=args.manualSeed)
     
     collate = collate_fn
-    if args.with_saliency:
+    if args.with_guiding:
         collate = salient_collate_fn
     
     data_loader = torch.utils.data.DataLoader(
@@ -191,8 +192,8 @@ def main(args):
     vis = utils.visualize.Visualize(args) if args.visualize else None
 
     print("Creating model")
-    if args.with_saliency:
-        model = SCRW(args, vis=vis, variant=args.saliency_variant).to(device)
+    if args.with_guiding:
+        model = SCRW(args, vis=vis, affinity_variant=args.affinity_variant, prior=args.prior_dataset).to(device)
     else:
         model = CRW(args, vis=vis).to(device)
     print(model)

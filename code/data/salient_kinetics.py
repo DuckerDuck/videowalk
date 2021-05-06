@@ -14,7 +14,7 @@ class SalientKinetics400(Kinetics400):
     """
     Args:
         root (string): Root directory of the Kinetics-400 Dataset.
-        salient_root (string, optional): Root directory of the Saliency Dataset, 
+        prior_root (string, optional): Root directory of the Prior Dataset, 
             if None generate a simple saliency map
         frames_per_clip (int): number of frames in a clip
         step_between_clips (int): number of frames between each clip
@@ -29,7 +29,7 @@ class SalientKinetics400(Kinetics400):
         label (int): class of the video clip
     """
 
-    def __init__(self, root, salient_root: Optional[str], frames_per_clip, step_between_clips=1, frame_rate=None,
+    def __init__(self, root, prior_root: Optional[str], frames_per_clip, step_between_clips=1, frame_rate=None,
                  extensions=('mp4',), transform=None, salient_transform=None, 
                  cached=None, _precomputed_metadata=None, frame_offset=0, saliency_channels=1):
         super(SalientKinetics400, self).__init__(root, frames_per_clip, 
@@ -45,12 +45,12 @@ class SalientKinetics400(Kinetics400):
         # Saliency maps are grayscale (1 channel) and optical flow contains Fx and Fy  (2 channels)
         self.saliency_channels = saliency_channels
         
-        if salient_root is None:
-            self.salient_root = None
+        if prior_root is None:
+            self.prior_root = None
         else:
-            self.salient_root = Path(salient_root)
-            if not self.salient_root.is_dir():
-                raise FileNotFoundError(f'Could not find saliency data at {self.salient_root}')
+            self.prior_root = Path(prior_root)
+            if not self.prior_root.is_dir():
+                raise FileNotFoundError(f'Could not find saliency data at {self.prior_root}')
 
     def clip_idx_to_frame(self, clip_location: Tuple[int, int]) -> List:
         video_idx, clip_idx = clip_location
@@ -116,7 +116,7 @@ class SalientKinetics400(Kinetics400):
         subfolders = video_path.relative_to(Path(self.root).parent).parent
         
         frames = self.clip_idx_to_frame(clip_location)
-        cached_folder = self.salient_root / subfolders / video_name
+        cached_folder = self.prior_root / subfolders / video_name
         
         saliencies = []
         for frame in frames:
@@ -145,7 +145,7 @@ class SalientKinetics400(Kinetics400):
 
                 # This information is needed for saliency caching
                 clip_location = self.video_clips.get_clip_location(idx)
-                if self.salient_root is None:
+                if self.prior_root is None:
                     saliency = self.generate_saliency_clip(video)
                 else:
                     saliency = self.get_saliency_clip(clip_location)

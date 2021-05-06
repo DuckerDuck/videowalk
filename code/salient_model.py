@@ -1,4 +1,3 @@
-from shutil import move
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -10,12 +9,12 @@ EPS = 1e-20
 
 
 class SCRW(nn.Module):
-    def __init__(self, args, vis=None, variant=None):
+    def __init__(self, args, vis=None, affinity_variant=None, prior='mbs'):
         super(SCRW, self).__init__()
         self.args = args
 
         self.edgedrop_rate = getattr(args, 'dropout', 0)
-        self.salient_edgedrop_rate = getattr(args, 'saliency_dropout', 0)
+        self.theta_affinity = getattr(args, 'theta_affinity', 0)
         self.featdrop_rate = getattr(args, 'featdrop', 0)
         self.temperature = getattr(args, 'temp', getattr(args, 'temperature', 0.07))
 
@@ -32,7 +31,8 @@ class SCRW(nn.Module):
         self.flip = getattr(args, 'flip', False)
         self.sk_targets = getattr(args, 'sk_targets', False)
         self.vis = vis
-        self.variant = variant
+        self.variant = affinity_variant
+        self.prior = prior
 
     def infer_dims(self):
         in_sz = 256
@@ -124,7 +124,7 @@ class SCRW(nn.Module):
                 # Current drop method (with mask) does not allow for gradients
                 # to flow all the way down to the saliency maps
                 N = saliency_A.shape[2]
-                drop_amount = int(N**2 * self.salient_edgedrop_rate)
+                drop_amount = int(N**2 * self.theta_affinity)
                 
                 # Top-k does not work in 2D, flatten tensor to get edge ranking
                 # start_dim = 1 to not flatten in batch dimension
@@ -139,15 +139,13 @@ class SCRW(nn.Module):
                 A[mask] = -1e20
 
             elif self.variant == 'add':
-                A = A + (saliency_A * self.salient_edgedrop_rate)
+                A = A + (saliency_A * self.theta_affinity)
             elif self.variant == 'add-subtract':
                 # 0.15 is the mean value of saliency values
-                A = A + ((saliency_A - 0.15) * self.salient_edgedrop_rate)
+                A = A + ((saliency_A - 0.15) * self.theta_affinity)
             elif self.variant == 'multiply':
-                A = A * (saliency_A + self.salient_edgedrop_rate)
-            elif self.variant == 'flow':
-                pass
-                # raise NotImplementedError
+                A = A * (saliency_A + self.theta_affinity)
+
 
         if do_sinkhorn:
             return utils.sinkhorn_knopp((A/self.temperature).exp(), 
@@ -202,7 +200,7 @@ class SCRW(nn.Module):
         SC = 1
 
         # If using optical flow, saliency maps contain two channels (fx, fy)
-        if self.variant == 'flow':
+        if self.prior == 'flow':
             _, _, SN, _, _ = s.shape
             SC = 2
             SN = SN // SC
@@ -226,7 +224,7 @@ class SCRW(nn.Module):
         #################################################################
         walks = dict()
         As = self.affinity(q[:, :, :-1], q[:, :, 1:])
-        if self.variant == 'flow':
+        if self.prior == 'flow':
             saliency_A = self.affinity_optical_flow(saliency_q)
         else:
             saliency_A = self.affinity(saliency_q[:, :, :-1], saliency_q[:, :, 1:])
@@ -275,16 +273,16 @@ class SCRW(nn.Module):
         #################################################################
         # Visualizations
         #################################################################
-        if (self.vis is not None):# and (np.random.random() < 0.02): # and False:
+        if (self.vis is not None) and (np.random.random() < 0.02): # and False:
             with torch.no_grad():
                 self.visualize_frame_pair(x, q, mm, 'reg')
-                utils.visualize.vis_affinity(x, A12s, vis=self.vis.vis, title='Affinity', caption='Affinity', vis_win='Regular affinity')
+                #utils.visualize.vis_affinity(x, A12s, vis=self.vis.vis, title='Affinity', caption='Affinity', vis_win='Regular affinity')
                 bg_to_affinity = s
-                if self.variant == 'flow':
+                if self.prior == 'flow':
                     bg_to_affinity = x
                     utils.visualize.vis_flow(x, s, title='flow', vis_win='optical flow', vis=self.vis.vis)
 
-                utils.visualize.vis_affinity(bg_to_affinity, [saliency_A[:, t] for t in range(T-1)], vis=self.vis.vis, title='Saliency Affinity', caption='Saliency Affinity')
+                #utils.visualize.vis_affinity(bg_to_affinity, [saliency_A[:, t] for t in range(T-1)], vis=self.vis.vis, title='Saliency Affinity', caption='Saliency Affinity')
                 utils.visualize.vis_patch(s, self.vis.vis, 'saliency', title='Saliency', caption='Patches Saliency Map')
                 utils.visualize.vis_patch(x, self.vis.vis, 'video', title='Video', caption='Patches Video')
                 if _N > 1: # and False:

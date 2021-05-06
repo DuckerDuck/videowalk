@@ -80,12 +80,13 @@ def train_args():
 
     parser.add_argument('--data-path', default='/data/ajabri/kinetics/',
         help='/home/ajabri/data/places365_standard/train/ | /data/ajabri/kinetics/')
-    parser.add_argument('--with-saliency', dest='with_saliency', action='store_true',
-        help='Apply saliency methods to videos, use in conjunction with saliency-cache argument')
-    parser.add_argument('--saliency-variant', type=str, dest='saliency_variant', help='Saliency variant')
-    parser.add_argument('--saliency-path', default='./saliency_cache/',
-        help='Path to saliency cache')
-    parser.add_argument('--saliency-frame-index', default=0, type=int, help='Path to saliency frames are zero or one indexed.')
+    parser.add_argument('--with-guiding', dest='with_guiding', action='store_true',
+        help='Use this argument to switch between models (True for SCRW, False for CRW)')
+    parser.add_argument('--affinity-variant', type=str, dest='affinity_variant',
+        help='Method of guiding the random walk, or, how to apply our priors to existing affinity.')
+    parser.add_argument('--prior-dataset', default='mbs',
+        help='Dataset of priors, location of data should be in "saliency_cache_PRIORNAME".')
+    parser.add_argument('--prior-frame-index', default=0, type=int, help='Dataset of our priors are zero or one indexed.')
     parser.add_argument('--device', default='cuda', help='device')
     parser.add_argument('--clip-len', default=8, type=int, metavar='N',
                         help='number of frames per clip')
@@ -121,7 +122,8 @@ def train_args():
 
     parser.add_argument('--name', default='', type=str, help='')
     parser.add_argument('--dropout', default=0, type=float, help='dropout rate on A')
-    parser.add_argument('--saliency-dropout', default=0.1, type=float, help='salient dropout rate on A, a value of 0.1 will remove 10% of non-salient nodes')
+    parser.add_argument('--theta-affinity', default=0.1, type=float, 
+        help='Theta parameter of affinity application method')
     parser.add_argument('--zero-diagonal', help='always zero diagonal of A', action="store_true", )
     parser.add_argument('--flip', default=False, help='flip transitions (bug)', action="store_true", )
 
@@ -173,8 +175,8 @@ def train_args():
         dt = datetime.datetime.today()
         args.name = "%s-%s-%s_%s" % (str(dt.month), str(dt.day), args.name, name)
 
-    if args.saliency_path.lower() == 'none':
-        args.saliency_path = None
+    if args.prior_dataset.lower() == 'none':
+        args.prior_dataset = None
 
     # Set seed
     random.seed(args.manualSeed)
