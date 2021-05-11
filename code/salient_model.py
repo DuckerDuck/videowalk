@@ -280,7 +280,7 @@ class SCRW(nn.Module):
                 bg_to_affinity = s
                 if self.prior == 'flow':
                     bg_to_affinity = x
-                    utils.visualize.vis_flow(x, s, title='flow', vis_win='optical flow', vis=self.vis.vis)
+                    #utils.visualize.vis_flow(x, s, title='flow', vis_win='optical flow', vis=self.vis.vis)
 
                 #utils.visualize.vis_affinity(bg_to_affinity, [saliency_A[:, t] for t in range(T-1)], vis=self.vis.vis, title='Saliency Affinity', caption='Saliency Affinity')
                 utils.visualize.vis_patch(s, self.vis.vis, 'saliency', title='Saliency', caption='Patches Saliency Map')

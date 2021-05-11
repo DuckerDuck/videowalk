@@ -29,13 +29,14 @@ method_index = {
 class VideoDataset(Dataset):
     """Dataset for looping through videos in folder and generating saliency maps"""
 
-    def __init__(self, dataset: Path, saliency_path: Path, method: str, extension='mp4', rescale=1):
+    def __init__(self, dataset: Path, saliency_path: Path, method: str, extension='mp4', rescale=1, save_scaled=False):
         self.root = dataset
         self.extension = extension
         self.videos = self.get_video_list()
         self.saliency_path = saliency_path
         self.method = method
         self.rescale = rescale
+        self.save_scaled = save_scaled
 
     def get_video_list(self) -> List[Path]:
         return list(self.root.glob(f'**/*.{self.extension}'))
@@ -125,7 +126,7 @@ class VideoDataset(Dataset):
 
         saliency = method(video, None)
 
-        if self.rescale != 1:
+        if self.rescale != 1 and not self.save_scaled:
             saliency = self.scale_video(saliency, height, width)
 
         for i, frame in enumerate(saliency):
@@ -177,7 +178,7 @@ class VideoDataset(Dataset):
         stdout = method(input_path, output_path)
 
         # Scale output back to original resolution
-        if self.rescale != 1:
+        if self.rescale != 1 and not self.save_scaled:
             (
                 ffmpeg
                 .input(str(output_path / '%01d.jpg'))
@@ -197,7 +198,7 @@ def no_collate(input):
     return input
 
 def generate(args):
-    dataset = VideoDataset(Path(args.data_path), Path(args.saliency_path), args.method, rescale=args.rescale)
+    dataset = VideoDataset(Path(args.data_path), Path(args.saliency_path), args.method, rescale=args.rescale, save_scaled=args.save_scaled)
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=args.batch_size,
         sampler=None, num_workers=args.workers//2,
@@ -230,6 +231,7 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--batch-size', default=8, type=int)
     parser.add_argument('-rs', '--rescale', default=1, type=float, 
         help='Scale video before generating saliency information, can speed up computation')
+    parser.add_argument('--save-scaled', action="store_true", help='Whether prior data should be saved in rescale resolution', default=False)
     parser.add_argument('-j', '--workers', default=16, type=int, metavar='N',
                         help='number of data loading workers (default: 16)')
  
