@@ -89,7 +89,7 @@ class VideoDataset(Dataset):
     def scale_video(self, video: np.array, height: int, width: int) -> np.array:
         scaled_frames = []
         for frame in video:
-            scaled_frame = cv2.resize(frame, dsize=(height, width), interpolation=cv2.INTER_CUBIC)
+            scaled_frame = cv2.resize(frame, dsize=(width, height), interpolation=cv2.INTER_CUBIC)
             scaled_frames.append(scaled_frame)
         return np.stack(scaled_frames, axis=0)
 
