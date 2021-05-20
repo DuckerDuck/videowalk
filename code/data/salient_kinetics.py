@@ -160,8 +160,14 @@ class SalientKinetics400(Kinetics400):
 
         # Scale saliency to size of video if they are not the same
         if saliency.shape[-2:] != video.shape[1:3]:
-            correct_size = (video.shape[1], video.shape[2])
-            saliency = torch.nn.functional.interpolate(saliency, size=correct_size)
+            # HACK: I accidentally transposed one dataset partially which does not need interpolation
+            vid_size = torch.tensor(video.shape[1:3]) 
+            sal_size = torch.tensor(saliency.shape[-2:])
+
+            if not (vid_size == torch.flip(sal_size, [0])).all():
+                video_path = self.video_clips.metadata['video_paths'][video_idx]
+                correct_size = (video.shape[1], video.shape[2])
+                saliency = torch.nn.functional.interpolate(saliency, size=correct_size)
 
         # The random state is kept constant for the two transforms, this
         # makes sure RandomResizedCrop is applied the same way in both 

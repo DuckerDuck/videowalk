@@ -104,6 +104,7 @@ def main(args):
     valdir = os.path.join(args.data_path, 'val_256')
     if args.prior_dataset:
         priordir = Path('./saliency_cache_' + args.prior_dataset)
+        print('PRIOR DATASET: ', priordir)
     else:
         priordir = None
 
