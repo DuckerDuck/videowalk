@@ -198,7 +198,12 @@ def no_collate(input):
     return input
 
 def generate(args):
-    dataset = VideoDataset(Path(args.data_path), Path(args.saliency_path), args.method, rescale=args.rescale, save_scaled=args.save_scaled)
+    dataset = VideoDataset(Path(args.data_path), 
+        Path(args.saliency_path), 
+        args.method, 
+        rescale=args.rescale, 
+        save_scaled=args.save_scaled, 
+        extension=args.extension)
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=args.batch_size,
         sampler=None, num_workers=args.workers//2,
@@ -234,6 +239,7 @@ if __name__ == '__main__':
     parser.add_argument('--save-scaled', action="store_true", help='Whether prior data should be saved in rescale resolution', default=False)
     parser.add_argument('-j', '--workers', default=16, type=int, metavar='N',
                         help='number of data loading workers (default: 16)')
+    parser.add_argument('--extension', default='mp4', help='File extension of videos')
  
     args = parser.parse_args()
     print(args)
