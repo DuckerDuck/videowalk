@@ -21,8 +21,8 @@ import utils
 from model import CRW
 from salient_model import SCRW
 
-def train_one_epoch(model, optimizer, lr_scheduler, data_loader, device, epoch, print_freq,
-    vis=None, checkpoint_fn=None):
+def train_one_epoch(model, optimizer, lr_scheduler, data_loader, device, epoch, print_freq, 
+                    guiding, vis=None, checkpoint_fn=None):
 
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
@@ -32,12 +32,22 @@ def train_one_epoch(model, optimizer, lr_scheduler, data_loader, device, epoch, 
     header = 'Epoch: [{}]'.format(epoch)
     logging_dataloader = metric_logger.log_every(data_loader, print_freq, header)
 
-    for (video, _), (saliency, _) in logging_dataloader:
+    for sample in logging_dataloader:
+        if guiding:
+            (video, _), (saliency, _) = sample
+        else:
+            video, _ = sample
+        
         start_time = time.time()
 
         video = video.to(device)
-        saliency = saliency.to(device)
-        output, loss, diagnostics = model(video, saliency)
+        if guiding:
+            saliency = saliency.to(device)
+        if guiding:
+            output, loss, diagnostics = model(video, saliency)
+        else:
+            output, loss, diagnostics = model(video)
+        
         loss = loss.mean()
 
         if vis is not None and np.random.random() < 0.01:
@@ -244,7 +254,7 @@ def main(args):
     start_time = time.time()
     for epoch in range(args.start_epoch, args.epochs):
         train_one_epoch(model, optimizer, lr_scheduler, data_loader,
-                        device, epoch, args.print_freq,
+                        device, epoch, args.print_freq, args.with_guiding,
                         vis=vis, checkpoint_fn=save_model_checkpoint)
 
     total_time = time.time() - start_time

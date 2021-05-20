@@ -45,6 +45,18 @@
                 "--affinity-variant", "multiply", "--cache-dataset", "--cache-dataset-path", "./cache_trim_output"],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Train Vanilla",
+            "type": "python",
+            "request": "launch",
+            "program": "train.py",
+            "args": ["--data-path", "../kinetics", "--frame-aug", "grid", "--dropout", "0.1", 
+                "--clip-len", "4", "--temp", "0.05", "--model-type", "scratch", "--workers", "0", 
+                "--batch-size", "1", "--data-parallel", "--visualize", "--lr", "0.0001", 
+                "--device", "cuda", "--cache-dataset", "--cache-dataset-path", "./cache_trim_output"],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
         }
     ]
 }
