@@ -151,8 +151,8 @@ class SalientKinetics400(Kinetics400):
                     saliency = self.get_saliency_clip(clip_location)
                 
                 success = True
-            except:
-                print('skipped idx', idx)
+            except Exception as e:
+                print('skipped idx', idx, e)
                 idx = np.random.randint(self.__len__())
         
         # saliency = self.get_saliency_clip(video, clip_location)

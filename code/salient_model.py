@@ -145,6 +145,8 @@ class SCRW(nn.Module):
                 A = A + ((saliency_A - 0.15) * self.theta_affinity)
             elif self.variant == 'multiply':
                 A = A * (saliency_A + self.theta_affinity)
+            else:
+                raise NotImplementedError(self.variant)
 
 
         if do_sinkhorn:

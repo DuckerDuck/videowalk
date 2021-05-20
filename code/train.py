@@ -92,7 +92,10 @@ def main(args):
     print("Preparing training dataloader")
     traindir = os.path.join(args.data_path, 'train_256' if not args.fast_test else 'val_256')
     valdir = os.path.join(args.data_path, 'val_256')
-    priordir = Path('./saliency_cache_' + args.prior_dataset)
+    if args.prior_dataset:
+        priordir = Path('./saliency_cache_' + args.prior_dataset)
+    else:
+        priordir = None
 
     st = time.time()
     if args.cache_dataset:
