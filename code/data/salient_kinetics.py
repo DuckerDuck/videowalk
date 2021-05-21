@@ -170,7 +170,12 @@ class SalientKinetics400(Kinetics400):
             else:
                 video_path = self.video_clips.metadata['video_paths'][video_idx]
                 correct_size = (video.shape[1], video.shape[2])
+                
+                # Interpolate needs the channel dimension
+                if len(saliency.shape) <= 3:
+                    saliency = saliency.unsqueeze(1)
                 saliency = torch.nn.functional.interpolate(saliency, size=correct_size)
+                saliency = saliency.squeeze()
 
         # The random state is kept constant for the two transforms, this
         # makes sure RandomResizedCrop is applied the same way in both 
