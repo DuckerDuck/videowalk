@@ -17,13 +17,15 @@ def test_saliency_transform():
     
     transform = utils.augs.get_train_saliency_transform(args)
     result, _ = transform(image)
-    torch.save(result, 'tests/a.pth')
+    torch.save(result, 'tests/aug_output.pth')
 
-def similar_to_file():
+def test_similar_to_file():
     set_seeds(args)
     
-    a = torch.read('tests/a.pth')
+    a = torch.load('tests/a.pth')
     transform = utils.augs.get_train_saliency_transform(args)
     b, _ = transform(image)
+    a = torch.tensor(a)
+    b = torch.tensor(b)
 
-    assert torch.isclose(a, b)
+    assert torch.isclose(a, b).all()
