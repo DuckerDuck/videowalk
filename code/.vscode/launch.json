@@ -19,7 +19,21 @@
             "cwd": "${workspaceFolder}"
         },
         {
-            "name": "Train MBS",
+            "name": "Train EQCUT",
+            "type": "python",
+            "request": "launch",
+            "program": "train.py",
+            "args": ["--data-path", "../kinetics", "--frame-aug", "grid", "--dropout", "0.1", 
+                "--clip-len", "4", "--temp", "0.05", "--model-type", "scratch", "--workers", "0", 
+                "--batch-size", "1", "--data-parallel", "--visualize", "--lr", "0.0001", 
+                "--device", "cuda", "--prior-frame-index",  "1", "--prior-dataset", 
+                "eqcut", "--theta-affinity", "0.1", "--with-guiding", "--patch-size", "64", "64", "3",
+                "--affinity-variant", "multiply"],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Train ITTI",
             "type": "python",
             "request": "launch",
             "program": "train.py",
@@ -27,8 +41,8 @@
                 "--clip-len", "4", "--temp", "0.05", "--model-type", "scratch", "--workers", "0", 
                 "--batch-size", "1", "--data-parallel", "--visualize", "--lr", "0.0001", 
                 "--device", "cuda", "--prior-frame-index",  "0", "--prior-dataset", 
-                "mbs", "--theta-affinity", "0.1", "--with-guiding", 
-                "--affinity-variant", "multiply", "--cache-dataset", "--cache-dataset-path", "./cache_trim_output"],
+                "itti", "--theta-affinity", "0.1", "--with-guiding", "--patch-size", "64", "64", "3",
+                "--affinity-variant", "multiply"],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}"
         },
